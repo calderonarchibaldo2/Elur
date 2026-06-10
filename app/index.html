@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Elur</title>
+<link rel="stylesheet" href="/src/style.css" />
+</head>
+<body>
+  <div class="topbar">
+    <div class="logo">
+      <svg class="lockmark" viewBox="0 0 48 48" fill="none" stroke="#2563eb" stroke-width="2.8" stroke-linecap="round"><path d="M24.0 24.0L24.0 4.0M24.0 11.6L28.9 8.2M24.0 11.6L19.1 8.2M24.0 24.0L41.3 14.0M34.7 17.8L40.2 20.3M34.7 17.8L35.3 11.8M24.0 24.0L41.3 34.0M34.7 30.2L35.3 36.2M34.7 30.2L40.2 27.7M24.0 24.0L24.0 44.0M24.0 36.4L19.1 39.8M24.0 36.4L28.9 39.8M24.0 24.0L6.7 34.0M13.3 30.2L7.8 27.7M13.3 30.2L12.7 36.2M24.0 24.0L6.7 14.0M13.3 17.8L12.7 11.8M13.3 17.8L7.8 20.3"/></svg>
+      <span>ELUR</span>
+    </div>
+    <span class="spacer"></span>
+    <span class="pill">Sui testnet</span>
+    <button class="pill pill-btn" id="tourBtn" title="A quick guided tour">✨ Tour</button>
+    <button class="pill pill-btn hidden" id="signoutTop" title="Your files and keys are safe — sign back in anytime.">Sign out</button>
+  </div>
+
+  <div class="wrap">
+    <div class="pagehead">
+      <h1>Your files, sealed.</h1>
+      <p class="sub">Encrypt, share with a key you control, open files others sent you — and revoke anytime. Nothing is uploaded.</p>
+    </div>
+
+    <div class="tabs">
+      <div class="tab on" id="tabOpen">Open a file</div>
+      <div class="tab" id="tabShare">Encrypt a file</div>
+    </div>
+
+    <!-- OPEN (recipient) -->
+    <div id="paneOpen">
+      <div class="card pad">
+        <div class="drop" id="openBtn">
+          <svg viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 018 0"/></svg>
+          <div class="drop-big">Open an encrypted file</div>
+          <div class="drop-sub">No account needed. Decrypts on your device only if the sender's key still grants access.</div>
+        </div>
+        <div class="status" id="ostatus"></div>
+        <div id="oout"></div>
+      </div>
+    </div>
+
+    <!-- ENCRYPT (sender) -->
+    <div id="paneShare" style="display:none">
+      <div id="lockBox" class="card pad">
+        <div class="lab">Sign in to encrypt</div>
+        <p class="muted small" style="margin-top:0">It needs your identity to sign. No password to remember — and signing out never loses your files.</p>
+        <button class="btn primary block" id="gsign" style="margin-top:12px">
+          <svg width="18" height="18" viewBox="0 0 48 48"><path fill="#fff" d="M43.6 20.1H42V20H24v8h11.3C33.7 32.7 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.9 1.2 8 3l5.7-5.7C34.3 6.1 29.4 4 24 4 13 4 4 13 4 24s9 20 20 20 20-9 20-20c0-1.3-.1-2.7-.4-3.9z"/></svg>
+          Sign in with Google
+        </button>
+        <p class="small" style="margin:14px 0 0;text-align:center"><a href="#" id="showPhrase" style="color:var(--muted)">Recover access with a phrase instead</a></p>
+        <div id="phraseBox" class="hidden">
+          <p class="muted small" style="margin:14px 0 0">Restoring a wallet from its 12-word recovery phrase:</p>
+          <textarea class="inp" id="seed" rows="2" placeholder="your 12-word recovery phrase…" style="margin-top:10px"></textarea>
+          <button class="btn ghost" id="unlock" style="margin-top:10px">Restore</button>
+        </div>
+        <div class="status" id="lstatus"></div>
+      </div>
+
+      <div id="shareBox" style="display:none">
+        <div class="idbar"><span class="dot"></span> Signed in <span class="muted addr" id="addr"></span><span class="sp"></span><span class="lock" id="lock" title="Your files and keys are safe — sign back in anytime to regain access.">sign out</span></div>
+
+        <!-- Step 1: file -->
+        <div class="sec">
+          <div class="lab"><span class="num">1</span> File</div>
+          <div class="card pad">
+            <div class="drop" id="pickFileBtn">
+              <svg viewBox="0 0 24 24"><path d="M12 16V4m0 0L8 8m4-4l4 4M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2"/></svg>
+              <div class="drop-big">Choose a file</div>
+              <div class="drop-sub">Encrypted on your device before anything leaves.</div>
+            </div>
+            <div style="text-align:center;margin-top:10px">
+              <a href="#" id="pickFolderBtn" class="small" style="color:var(--muted)">…or encrypt a whole folder 📦</a>
+            </div>
+            <div id="fileChosen" class="filepick hidden"></div>
+          </div>
+        </div>
+
+        <!-- Step 2: mode -->
+        <div class="sec">
+          <div class="lab"><span class="num">2</span> Mode</div>
+          <div class="modes">
+            <div class="mode sel" id="modeShare">
+              <div class="mt"><svg viewBox="0 0 24 24"><path d="M22 2L11 13"/><path d="M22 2l-7 20-4-9-9-4 20-7z"/></svg> Send to someone</div>
+              <div class="md">They open it with no account. You can revoke, expire, or limit access anytime.</div>
+              <div class="tagx reach">for someone else · revocable</div>
+            </div>
+            <div class="mode" id="modeVault">
+              <div class="mt"><svg viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 018 0v3"/></svg> Private vault</div>
+              <div class="md">Only you can ever open it — encrypted offline under your key. Not for sending.</div>
+              <div class="tagx ctrl">just for you · offline</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Step 3: scope (share mode only) -->
+        <div class="sec" id="scopeSec">
+          <div class="lab"><span class="num">3</span> Access</div>
+          <div class="card pad">
+            <div class="scopes">
+              <div class="scope">
+                <label>Expires</label>
+                <select id="nsExpiry">
+                  <option value="0">never</option>
+                  <option value="8000">8 seconds (demo)</option>
+                  <option value="3600000">1 hour</option>
+                  <option value="86400000">1 day</option>
+                  <option value="604800000" selected>7 days</option>
+                  <option value="2592000000">30 days</option>
+                </select>
+              </div>
+              <div class="scope">
+                <label>Max opens</label>
+                <select id="nsOpens">
+                  <option value="0">unlimited</option>
+                  <option value="1">1</option>
+                  <option value="3">3</option>
+                  <option value="5">5</option>
+                </select>
+              </div>
+            </div>
+            <div class="scope" style="margin-top:12px">
+              <label>Recipient can</label>
+              <select id="nsExport">
+                <option value="1">View &amp; export — open in Word, Preview, etc.</option>
+                <option value="0">View only — in Elur, watermarked, can't be exported</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <!-- Step 4: encrypt -->
+        <div class="sec">
+          <div class="lab"><span class="num">4</span> Encrypt</div>
+          <div class="card pad">
+            <button class="btn primary block" id="encryptBtn">Encrypt &amp; prepare to send</button>
+            <div class="status" id="sstatus"></div>
+            <div id="sout"></div>
+          </div>
+        </div>
+
+        <div class="card pad" id="sharesCard" style="display:none">
+          <div class="lab">Your shares</div>
+          <div id="shares"></div>
+        </div>
+      </div>
+    </div>
+
+    <p class="foot">Files are never uploaded or stored by Elur. Access is governed by your on-chain key and revocable anytime.</p>
+  </div>
+  <!-- guided tour overlay -->
+  <div id="tourSpot"></div>
+  <div id="tourTip">
+    <div class="tn" id="tourN">Step</div>
+    <div class="th" id="tourH">Title</div>
+    <div class="tb" id="tourB">Body</div>
+    <div class="tr">
+      <div class="dots" id="tourDots"></div>
+      <div class="acts"><span class="mini" id="tourSkip">Skip</span><span class="mini next" id="tourNext">Next</span></div>
+    </div>
+  </div>
+
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>

@@ -1,0 +1,8 @@
+[package]
+name = "yale"
+edition = "2024.beta"
+# Yale on-chain access layer. The token (AccessPolicy) + the Seal gate (seal_approve).
+# Build: `sui move build`. The Sui framework + stdlib are auto-included by the toolchain.
+
+[addresses]
+yale = "0x0"

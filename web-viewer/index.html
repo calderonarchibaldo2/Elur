@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Yale</title>
+<style>
+  :root{ --bg:#0b0c0f; --panel:#14161b; --panel2:#1b1e26; --panel3:#10131a; --line:#262a33; --ink:#eef1f6; --muted:#8b93a3; --faint:#5a6273; --gold:#c8a44d; --gold2:#e7c876; --recv:#46c98b; --recv2:#7be0b0; --fwd:#e5604f; --fwd2:#ff8676; }
+  *{box-sizing:border-box} html,body{margin:0;min-height:100%}
+  body{background:radial-gradient(1100px 700px at 80% -10%,#15171d,#0b0c0f 60%);color:var(--ink);font:14px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,sans-serif}
+  .wrap{max-width:720px;margin:0 auto;padding:26px 22px 60px}
+  .logo{display:flex;align-items:center;gap:10px;font-weight:700;letter-spacing:.5px;font-size:18px}
+  .lk{width:28px;height:28px}
+  .tagline{color:var(--muted);font-size:12.5px;margin:6px 0 18px 38px}
+  .tabs{display:flex;gap:8px;margin-bottom:16px}
+  .tab{flex:1;text-align:center;padding:11px;border:1px solid var(--line);border-radius:10px;background:#0d1014;cursor:pointer;font-weight:600;font-size:13.5px;color:var(--muted)}
+  .tab.on{border-color:var(--gold);color:var(--gold2);background:#1d2129}
+  .drop{border:1.6px dashed #2f3442;border-radius:13px;padding:40px 20px;text-align:center;cursor:pointer;transition:.18s;background:var(--panel2)}
+  .drop:hover{border-color:var(--gold);background:#1d2129}
+  .drop .big{font-size:15px;font-weight:600;margin-top:10px}
+  .drop .sub{color:var(--muted);font-size:12.5px;margin-top:4px}
+  .status{margin-top:14px;font-size:13px;color:var(--muted);min-height:20px}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:13px;padding:18px;margin-top:16px}
+  .filehead{display:flex;align-items:center;gap:12px;margin-bottom:14px}
+  .filehead .fi{width:42px;height:42px;border-radius:10px;background:#222733;display:grid;place-items:center;font-size:20px;color:var(--gold2)}
+  .filehead .nm{font-weight:600;word-break:break-all}
+  .badge{display:inline-flex;align-items:center;gap:5px;font-size:11px;padding:3px 9px;border-radius:999px}
+  .badge.ok{background:rgba(70,201,139,.13);color:var(--recv2)} .badge.no{background:rgba(229,96,79,.13);color:var(--fwd2)}
+  #render pre{white-space:pre-wrap;word-break:break-word;background:#0d1014;border:1px solid var(--line);border-radius:10px;padding:14px;max-height:440px;overflow:auto;font-family:ui-monospace,monospace;font-size:12.5px}
+  #render img{max-width:100%;border-radius:10px;border:1px solid var(--line)}
+  #render iframe{width:100%;height:540px;border:1px solid var(--line);border-radius:10px;background:#fff}
+  .denied{text-align:center;padding:28px 16px;color:var(--fwd2)} .denied .ic{font-size:32px}
+  .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;border:none;border-radius:10px;padding:11px 16px;font-size:13.5px;font-weight:600;cursor:pointer;background:linear-gradient(180deg,var(--gold2),var(--gold));color:#1a1407;text-decoration:none}
+  .btn:disabled{opacity:.45;cursor:not-allowed}
+  .btn.ghost{background:#191c23;color:var(--ink);border:1px solid var(--line)}
+  .btn.danger{background:linear-gradient(180deg,#ef6e5e,var(--fwd));color:#250b07}
+  .inp{width:100%;background:#0d1014;color:var(--ink);border:1px solid var(--line);border-radius:9px;padding:10px;font-size:13px;font-family:ui-monospace,monospace}
+  .idbar{display:flex;align-items:center;gap:9px;background:var(--panel2);border:1px solid var(--line);border-radius:999px;padding:7px 13px;font-size:12px;margin-bottom:14px}
+  .idbar .dot{width:8px;height:8px;border-radius:50%;background:var(--recv)} .idbar .sp{flex:1}
+  .idbar .lock{cursor:pointer;color:var(--faint)} .idbar .lock:hover{color:var(--gold2)}
+  .share{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid #1b1e26;font-size:12.5px}
+  .share:last-child{border-bottom:none}
+  .share .nm{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .share .st{font-size:11px;padding:2px 8px;border-radius:999px}
+  .mini{font-size:12px;color:var(--faint);margin-top:14px}
+  .row{display:flex;gap:10px;margin-top:12px} .row>*{flex:1}
+  h3{font-size:13px;margin:0 0 8px;color:var(--muted);text-transform:uppercase;letter-spacing:.4px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="logo">
+    <svg class="lk" viewBox="0 0 48 48" fill="none"><rect x="9" y="21" width="30" height="22" rx="5" fill="#1b1e26" stroke="#c8a44d" stroke-width="2"/><path d="M16 21v-5a8 8 0 0116 0v5" stroke="#c8a44d" stroke-width="2" fill="none"/><circle cx="24" cy="30" r="3.2" fill="#e7c876"/><rect x="22.6" y="31" width="2.8" height="7" rx="1.4" fill="#e7c876"/></svg>
+    <span>YALE</span>
+  </div>
+  <div class="tagline">Encrypt a file, send the file itself with a key you control, open files others sent you — and revoke anytime. No link, nothing hosted.</div>
+
+  <div class="tabs">
+    <div class="tab on" id="tabOpen">Open a file</div>
+    <div class="tab" id="tabShare">Share a file</div>
+  </div>
+
+  <!-- OPEN (recipient) -->
+  <div id="paneOpen">
+    <div class="drop" id="odrop">
+      <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="#e7c876" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 018 0v3"/></svg>
+      <div class="big">Drop a .yale file to open it</div>
+      <div class="sub">no account, no install · decrypts on your device if access is still granted</div>
+      <input type="file" id="ofile" accept=".yale,application/json" style="display:none">
+    </div>
+    <div class="status" id="ostatus"></div>
+    <div id="oout"></div>
+  </div>
+
+  <!-- SHARE (sender) -->
+  <div id="paneShare" style="display:none">
+    <div id="lockBox" class="card">
+      <h3>Unlock to share</h3>
+      <div class="muted" style="font-size:12.5px;margin-bottom:10px">Sharing creates an on-chain key, so it needs your identity to sign. Enter your recovery phrase (testnet). <b>Dev step</b> — production uses sponsored gas + sign-in, no phrase here.</div>
+      <textarea class="inp" id="seed" rows="2" placeholder="your 12-word recovery phrase…"></textarea>
+      <div class="row"><button class="btn" id="unlock">Unlock</button></div>
+    </div>
+
+    <div id="shareBox" style="display:none">
+      <div class="idbar"><span class="dot"></span> Unlocked <span class="muted" id="addr"></span><span class="sp"></span><span class="lock" id="lock">lock</span></div>
+      <div class="drop" id="sdrop">
+        <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="#e7c876" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 16V4m0 0L8 8m4-4l4 4M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2"/></svg>
+        <div class="big">Drop a file to encrypt &amp; share</div>
+        <div class="sub">it's encrypted on your device, then a revocable key is minted on-chain</div>
+        <input type="file" id="sfile" style="display:none">
+      </div>
+      <div class="status" id="sstatus"></div>
+      <div id="sout"></div>
+      <div class="card" id="sharesCard" style="display:none">
+        <h3>Your shares</h3>
+        <div id="shares"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="mini">Files are never uploaded or stored by Yale. The encrypted file is yours to send — no link, nothing hosted; access is governed by your key and revocable anytime.</div>
+</div>
+<script type="module" src="/main.js"></script>
+</body>
+</html>

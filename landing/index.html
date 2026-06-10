@@ -1,0 +1,466 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Elur — You shared it. You still own it.</title>
+<meta name="description" content="Un-send any file. Encrypt on your device, share anywhere, revoke access at any time — even after you've hit send. Non-custodial by design." />
+
+<!-- ═══ SOCIAL CARDS — replace https://elur.example with the real domain before launch ═══ -->
+<meta property="og:type" content="website" />
+<meta property="og:title" content="Elur — You shared it. You still own it." />
+<meta property="og:description" content="Un-send any file. Encrypt on your device, share anywhere, revoke access at any time — even after you've hit send." />
+<meta property="og:url" content="https://elur.example/" />
+<meta property="og:image" content="https://elur.example/og.png" />
+<meta property="og:image:width" content="1200" />
+<meta property="og:image:height" content="630" />
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:title" content="Elur — You shared it. You still own it." />
+<meta name="twitter:description" content="Un-send any file. Encrypt on your device, share anywhere, revoke at any time." />
+<meta name="twitter:image" content="https://elur.example/og.png" />
+<meta name="theme-color" content="#f4f2ec" />
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48' fill='none' stroke='%231b46c2' stroke-width='3' stroke-linecap='round'%3E%3Cpath d='M24 24L24 4M24 11.6L28.9 8.2M24 11.6L19.1 8.2M24 24L41.3 14M34.7 17.8L40.2 20.3M34.7 17.8L35.3 11.8M24 24L41.3 34M34.7 30.2L35.3 36.2M34.7 30.2L40.2 27.7M24 24L24 44M24 36.4L19.1 39.8M24 36.4L28.9 39.8M24 24L6.7 34M13.3 30.2L7.8 27.7M13.3 30.2L12.7 36.2M24 24L6.7 14M13.3 17.8L12.7 11.8M13.3 17.8L7.8 20.3'/%3E%3C/svg%3E" />
+
+<!-- TODO before launch: self-host these three fonts (google-webfonts-helper makes it a 2-min job) —
+     a privacy product shouldn't ping Google on page load. -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;0,9..144,500;0,9..144,600;1,9..144,400;1,9..144,500&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper:#f4f2ec; --panel:#fffdf8; --ink:#12141b; --soft:#565b66; --faint:#82858e;
+    --accent:#1b46c2; --line:rgba(18,20,27,.14); --line2:rgba(18,20,27,.08);
+    --maxw:1180px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{scroll-behavior:smooth}
+  @media (prefers-reduced-motion: reduce){
+    html{scroll-behavior:auto}
+    *,*::before,*::after{animation-duration:.01ms !important;animation-iteration-count:1 !important;transition-duration:.01ms !important}
+    .rv{opacity:1 !important;transform:none !important}
+  }
+  body{background:var(--paper);color:var(--ink);font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+    line-height:1.6;-webkit-font-smoothing:antialiased;overflow-x:hidden}
+  .serif{font-family:"Fraunces",Georgia,serif}
+  .mono{font-family:"JetBrains Mono",monospace}
+  a{color:inherit;text-decoration:none}
+  .wrap{max-width:var(--maxw);margin:0 auto;padding:0 30px}
+  ::selection{background:#cdd8ff}
+  img,svg{display:block}
+
+  /* subtle paper grain */
+  .grain{position:fixed;inset:0;z-index:0;pointer-events:none;opacity:.4;mix-blend-mode:multiply;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.05'/%3E%3C/svg%3E")}
+
+  /* nav */
+  nav{position:fixed;top:0;left:0;right:0;z-index:60;transition:background .35s,border-color .35s;border-bottom:1px solid transparent}
+  nav.scrolled{background:rgba(244,242,236,.86);backdrop-filter:blur(12px);border-color:var(--line2)}
+  nav .wrap{display:flex;align-items:center;justify-content:space-between;height:74px}
+  .brand{display:flex;align-items:center;gap:11px;font-weight:600;font-size:19px;letter-spacing:4px;color:var(--ink)}
+  .brand svg{width:25px;height:25px}
+  .navlinks{display:flex;gap:34px;align-items:center;font-size:13.5px;color:var(--soft);font-weight:500}
+  .navlinks a{transition:color .2s}.navlinks a:hover{color:var(--ink)}
+  .navcta{color:var(--ink) !important;border-bottom:1.5px solid var(--accent);padding-bottom:2px}
+  @media(max-width:740px){.navlinks a:not(.navcta){display:none}}
+
+  /* reveal */
+  .rv{opacity:0;transform:translateY(26px);transition:opacity .9s cubic-bezier(.2,.7,.2,1),transform .9s cubic-bezier(.2,.7,.2,1)}
+  .rv.in{opacity:1;transform:none}
+
+  /* section scaffolding */
+  section{position:relative;z-index:2}
+  .eyebrow{font-family:"JetBrains Mono";font-size:12px;letter-spacing:2.5px;text-transform:uppercase;color:var(--soft);
+    display:flex;align-items:center;gap:12px;margin-bottom:30px}
+  .eyebrow .ix{color:var(--accent)}
+  .eyebrow::after{content:"";flex:1;height:1px;background:var(--line2);max-width:120px}
+  .rule{height:1px;background:var(--line2);width:100%}
+
+  h2{font-family:"Fraunces";font-weight:400;font-size:clamp(32px,5.2vw,58px);line-height:1.04;letter-spacing:-.5px;color:var(--ink);max-width:880px}
+  h2 em{font-style:italic;color:var(--accent)}
+  .lead{font-size:19px;color:var(--soft);max-width:660px;margin-top:24px;line-height:1.55}
+
+  /* hero */
+  .hero{padding:160px 0 90px;position:relative}
+  .heroflake{position:absolute;top:90px;right:0;width:340px;height:340px;opacity:.07;pointer-events:none;animation:spin 90s linear infinite}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  @media(max-width:820px){.heroflake{width:200px;height:200px;opacity:.05}}
+  .h-eye{font-family:"JetBrains Mono";font-size:12.5px;letter-spacing:3px;text-transform:uppercase;color:var(--soft);margin-bottom:30px;display:flex;align-items:center;gap:10px}
+  .h-eye .dot{width:7px;height:7px;border-radius:50%;background:var(--accent)}
+  h1{font-family:"Fraunces";font-weight:380;font-size:clamp(46px,8.4vw,108px);line-height:.96;letter-spacing:-2.5px;color:var(--ink);max-width:14ch}
+  h1 .it{font-style:italic;font-weight:400}
+  .h-sub{font-size:clamp(18px,2.2vw,21px);color:var(--soft);max-width:540px;margin:34px 0 40px;line-height:1.55}
+  .h-sub b{color:var(--ink);font-weight:600}
+  .h-btns{display:flex;gap:16px;flex-wrap:wrap;align-items:center}
+  .btn{display:inline-flex;align-items:center;gap:9px;font-weight:600;font-size:15px;padding:15px 28px;border-radius:8px;cursor:pointer;border:none;transition:transform .15s,background .2s,box-shadow .25s;font-family:Inter}
+  .btn.primary{background:var(--accent);color:#fff;box-shadow:0 10px 30px rgba(27,70,194,.22)}
+  .btn.primary:hover{transform:translateY(-2px);box-shadow:0 16px 40px rgba(27,70,194,.33)}
+  .btn.link{color:var(--ink);font-weight:600;font-size:15px}
+  .btn.link:hover{color:var(--accent)}
+  .h-meta{margin-top:46px;display:flex;gap:0;flex-wrap:wrap;border-top:1px solid var(--line2);padding-top:22px;max-width:680px}
+  .h-meta div{flex:1;min-width:150px;padding-right:18px}
+  .h-meta .mk{font-family:"JetBrains Mono";font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:var(--faint);margin-bottom:5px}
+  .h-meta .mv{font-size:14.5px;color:var(--ink);font-weight:500}
+
+  /* demo */
+  .demo{padding:60px 0 120px}
+  .vidwrap{max-width:860px;margin:0 auto;border:1px solid var(--line);border-radius:16px;overflow:hidden;
+    box-shadow:0 30px 70px rgba(18,20,27,.10);background:var(--panel)}
+  .vidwrap video{display:block;width:100%;height:auto}
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:16px;box-shadow:0 30px 70px rgba(18,20,27,.08);overflow:hidden;max-width:560px;margin:0 auto}
+  .pn-bar{display:flex;align-items:center;gap:7px;padding:14px 18px;border-bottom:1px solid var(--line2)}
+  .tl{width:11px;height:11px;border-radius:50%;background:#dcd7cc}
+  .pn-bar .tt{margin-left:10px;font-size:12.5px;color:var(--faint);font-family:"JetBrains Mono"}
+  .pn-body{padding:26px;position:relative}
+  .pn-fhead{display:flex;align-items:center;gap:14px;margin-bottom:20px}
+  .pn-icon{width:46px;height:46px;border-radius:10px;background:#eef1ff;display:flex;align-items:center;justify-content:center;font-size:21px;flex-shrink:0;transition:.4s}
+  .pn-name{font-family:"JetBrains Mono";font-size:14px;color:var(--ink);font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .pn-status{font-size:12.5px;color:var(--soft);margin-top:3px}
+  .pn-pill{margin-left:auto;font-size:11px;font-weight:600;font-family:"JetBrains Mono";padding:4px 10px;border-radius:999px;background:#ecebe4;color:var(--soft);white-space:nowrap}
+  .pn-pill.live{background:#e3f6ec;color:#0f7a47}.pn-pill.sealed{background:#fde7e7;color:#c0392b}
+  .pn-lines{display:flex;flex-direction:column;gap:10px}
+  .pn-lines span{height:9px;border-radius:5px;background:#e7e4da;transition:.5s}
+  .pn-lines span:nth-child(1){width:90%}.pn-lines span:nth-child(2){width:74%}.pn-lines span:nth-child(3){width:83%}.pn-lines span:nth-child(4){width:56%}
+  .panel.enc .pn-lines span{background:linear-gradient(90deg,#1b46c2,#5b9dff);background-size:200% auto;animation:flow 2.6s linear infinite}
+  @keyframes flow{to{background-position:200% center}}
+  .panel.enc .pn-icon{background:#1b46c2;color:#fff}
+  .pn-seal{position:absolute;inset:0;background:rgba(255,253,248,.82);backdrop-filter:blur(4px);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:7px;opacity:0;pointer-events:none;transition:opacity .5s}
+  .panel.sealed .pn-seal{opacity:1}.panel.sealed .pn-icon{filter:grayscale(1) opacity(.45)}
+  .pn-seal .lk{font-size:34px}.pn-seal .lt{font-family:"Fraunces";font-style:italic;font-size:21px;color:var(--ink)}.pn-seal .ls{font-size:12.5px;color:var(--soft)}
+  .pn-actions{display:flex;gap:8px;padding:0 26px 16px;flex-wrap:wrap}
+  .pnb{font-family:Inter;font-weight:600;font-size:13px;padding:10px 15px;border-radius:8px;cursor:pointer;border:1px solid var(--line);background:transparent;color:var(--ink);transition:.2s}
+  .pnb:hover:not(:disabled){background:var(--ink);color:#fff}
+  .pnb:disabled{opacity:.3;cursor:not-allowed}
+  .pnb.go{background:var(--accent);border-color:var(--accent);color:#fff}.pnb.go:hover:not(:disabled){background:#173baa}
+  .pnb.danger{border-color:#e3b3b3;color:#c0392b}.pnb.danger:hover:not(:disabled){background:#c0392b;color:#fff}
+  .pn-log{margin:0 26px 20px;padding:11px 0 0;border-top:1px solid var(--line2);font-size:11.5px;color:var(--soft);font-family:"JetBrains Mono";min-height:18px}
+  .pn-log .ts{color:var(--faint)}
+  .demo-cap{text-align:center;font-family:"JetBrains Mono";font-size:11.5px;letter-spacing:2px;text-transform:uppercase;color:var(--faint);margin-bottom:26px}
+
+  /* stats */
+  .stats{display:grid;grid-template-columns:repeat(3,1fr)}
+  @media(max-width:720px){.stats{grid-template-columns:1fr}}
+  .stat{padding:44px 28px;border-left:1px solid var(--line2)}
+  .stat:first-child{border-left:none;padding-left:0}
+  .stat .n{font-family:"Fraunces";font-weight:400;font-size:clamp(40px,5.2vw,62px);color:var(--ink);line-height:1;letter-spacing:-1px}
+  .stat .d{font-size:14.5px;color:var(--soft);margin-top:14px;max-width:240px}
+  .stat .src{font-family:"JetBrains Mono";font-size:10.5px;letter-spacing:1px;text-transform:uppercase;color:var(--faint);margin-top:8px}
+
+  /* generic block */
+  .block{padding:120px 0}
+  .pquote{font-family:"Fraunces";font-weight:400;font-size:clamp(28px,4.4vw,50px);line-height:1.16;letter-spacing:-.6px;color:var(--ink);max-width:900px}
+  .pquote .x{font-style:italic;color:var(--accent)}
+
+  /* steps */
+  .steps{display:grid;grid-template-columns:repeat(3,1fr);gap:0;margin-top:60px}
+  @media(max-width:780px){.steps{grid-template-columns:1fr}}
+  .step{padding:0 34px;border-left:1px solid var(--line2)}
+  .step:first-child{border-left:none;padding-left:0}
+  @media(max-width:780px){.step{border-left:none;padding:30px 0;border-top:1px solid var(--line2)}.step:first-child{border-top:none}}
+  .step .sn{font-family:"JetBrains Mono";font-size:13px;color:var(--accent);font-weight:500}
+  .step h3{font-family:"Fraunces";font-weight:500;color:var(--ink);font-size:24px;margin:14px 0 12px}
+  .step p{font-size:15px;color:var(--soft)}
+
+  /* ai list */
+  .ailist{margin-top:50px;border-top:1px solid var(--line2)}
+  .airow{display:flex;gap:24px;align-items:baseline;padding:22px 0;border-bottom:1px solid var(--line2)}
+  .airow .co{font-family:"Fraunces";font-weight:500;font-size:21px;color:var(--ink);min-width:150px}
+  .airow .desc{font-size:15.5px;color:var(--soft)}.airow .by{color:var(--accent);font-weight:600;font-style:italic;font-family:"Fraunces"}
+  .aikick{margin-top:40px;font-family:"Fraunces";font-size:clamp(20px,2.6vw,27px);font-weight:400;line-height:1.35;color:var(--ink);max-width:820px}
+  .aikick b{font-style:italic;color:var(--accent);font-weight:400}
+
+  /* compare */
+  .cmpwrap{margin-top:54px;overflow-x:auto}
+  table{width:100%;border-collapse:collapse;min-width:640px;font-size:15px}
+  th,td{padding:18px 14px;text-align:center;border-bottom:1px solid var(--line2)}
+  th:first-child,td:first-child{text-align:left;color:var(--ink);font-weight:500}
+  thead th{font-family:"JetBrains Mono";font-size:11px;text-transform:uppercase;letter-spacing:.8px;color:var(--faint);font-weight:500;vertical-align:bottom;line-height:1.5}
+  tbody td:first-child{color:var(--soft)}
+  .yes{color:var(--accent);font-weight:700;font-size:17px}.no{color:var(--faint);font-weight:400;font-size:18px}
+  tr.elurrow td{background:#eef1ff}
+  tr.elurrow td:first-child{color:var(--accent);font-weight:700;font-family:"Fraunces";font-size:17px}
+  tbody tr:last-child td{border-bottom:none}
+  .cmpnote{font-size:12.5px;color:var(--soft);margin-top:16px;max-width:760px}
+
+  /* trust */
+  .trustgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:0;margin-top:54px}
+  @media(max-width:780px){.trustgrid{grid-template-columns:1fr}}
+  .tcard{padding:0 34px;border-left:1px solid var(--line2)}
+  .tcard:first-child{border-left:none;padding-left:0}
+  @media(max-width:780px){.tcard{border-left:none;padding:30px 0;border-top:1px solid var(--line2)}.tcard:first-child{border-top:none}}
+  .tcard .tn{font-family:"JetBrains Mono";font-size:12px;color:var(--accent)}
+  .tcard h3{font-family:"Fraunces";font-weight:500;color:var(--ink);font-size:22px;margin:12px 0 11px}
+  .tcard p{font-size:14.5px;color:var(--soft)}
+
+  /* who */
+  .wholist{margin-top:40px;font-family:"Fraunces";font-weight:300;font-size:clamp(22px,3vw,34px);line-height:1.5;color:var(--soft);max-width:900px}
+  .wholist b{color:var(--ink);font-weight:500;font-style:italic}
+
+  /* cta */
+  .cta{padding:150px 0;text-align:center}
+  .cta h2{margin:0 auto}
+  .cta .lead{margin:24px auto 0}
+  .waitlist{margin:46px auto 0;max-width:440px;display:flex;gap:0;border-bottom:1.5px solid var(--ink);align-items:center}
+  .waitlist input{flex:1;background:transparent;border:none;padding:14px 4px;color:var(--ink);font-size:16px;font-family:Inter;outline:none}
+  .waitlist input::placeholder{color:var(--faint)}
+  .waitlist button{background:transparent;border:none;color:var(--accent);font-weight:600;font-size:15px;cursor:pointer;padding:10px 6px;white-space:nowrap;font-family:Inter}
+  .wl-success{margin-top:24px;color:#0f7a47;font-weight:500;font-family:"Fraunces";font-style:italic;font-size:18px;display:none}
+  .wl-success.show{display:block}
+
+  footer{border-top:1px solid var(--line2);padding:46px 0;color:var(--soft);font-size:13.5px;position:relative;z-index:2}
+  footer .wrap{display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:18px}
+  .footnote{font-family:"Fraunces";font-style:italic;font-size:15px;color:var(--soft);max-width:430px;margin-top:12px;line-height:1.5}
+  .footmeta{font-family:"JetBrains Mono";font-size:11px;letter-spacing:1px;text-transform:uppercase;color:var(--faint);text-align:right;line-height:1.9}
+</style>
+</head>
+<body>
+  <div class="grain"></div>
+
+  <nav id="nav"><div class="wrap">
+    <a class="brand" href="#top">
+      <svg viewBox="0 0 48 48" fill="none" stroke="#12141b" stroke-width="2.6" stroke-linecap="round"><path d="M24 24L24 4M24 11.6L28.9 8.2M24 11.6L19.1 8.2M24 24L41.3 14M34.7 17.8L40.2 20.3M34.7 17.8L35.3 11.8M24 24L41.3 34M34.7 30.2L35.3 36.2M34.7 30.2L40.2 27.7M24 24L24 44M24 36.4L19.1 39.8M24 36.4L28.9 39.8M24 24L6.7 34M13.3 30.2L7.8 27.7M13.3 30.2L12.7 36.2M24 24L6.7 14M13.3 17.8L12.7 11.8M13.3 17.8L7.8 20.3"/></svg>
+      ELUR
+    </a>
+    <div class="navlinks">
+      <a href="#how">How it works</a><a href="#why">Why now</a><a href="#compare">Compare</a>
+      <a href="#join" class="navcta">Join the waitlist</a>
+    </div>
+  </div></nav>
+
+  <!-- HERO -->
+  <header class="hero" id="top">
+    <svg class="heroflake" viewBox="0 0 48 48" fill="none" stroke="#12141b" stroke-width="0.6" stroke-linecap="round"><path d="M24 24L24 4M24 11.6L28.9 8.2M24 11.6L19.1 8.2M24 24L41.3 14M34.7 17.8L40.2 20.3M34.7 17.8L35.3 11.8M24 24L41.3 34M34.7 30.2L35.3 36.2M34.7 30.2L40.2 27.7M24 24L24 44M24 36.4L19.1 39.8M24 36.4L28.9 39.8M24 24L6.7 34M13.3 30.2L7.8 27.7M13.3 30.2L12.7 36.2M24 24L6.7 14M13.3 17.8L12.7 11.8M13.3 17.8L7.8 20.3"/></svg>
+    <div class="wrap">
+      <div class="h-eye"><span class="dot"></span>Live on testnet · launching soon</div>
+      <h1>You shared it.<br><span class="it">You still own it.</span></h1>
+      <p class="h-sub">Elur lets you <b>un-send any file.</b> Encrypt it on your own device, share it anywhere, then revoke access at any time — even after you've hit send.</p>
+      <div class="h-btns">
+        <a href="#join" class="btn primary">Join the waitlist</a>
+        <a href="#demo" class="btn link">Watch the 30-second demo ↓</a>
+      </div>
+      <div class="h-meta">
+        <div><div class="mk">Custody</div><div class="mv">Non-custodial — we store nothing</div></div>
+        <div><div class="mk">Sign in</div><div class="mv">Google. No seed phrase.</div></div>
+        <div><div class="mk">Control</div><div class="mv">Revoke, expire, watermark</div></div>
+      </div>
+    </div>
+  </header>
+
+  <!-- DEMO -->
+  <section class="demo" id="demo">
+    <div class="wrap rv">
+      <div class="demo-cap">The real app, in 30 seconds</div>
+      <div class="vidwrap">
+        <video src="elur-demo.mp4" poster="poster.jpg" controls muted playsinline preload="metadata"></video>
+      </div>
+      <div class="demo-cap" style="margin-top:70px">Or try it yourself — encrypt, share, then take it back</div>
+      <div class="panel" id="play">
+        <div class="pn-bar"><span class="tl"></span><span class="tl"></span><span class="tl"></span><span class="tt">Elur</span></div>
+        <div class="pn-body">
+          <div class="pn-fhead">
+            <div class="pn-icon" id="pcIcon">📄</div>
+            <div style="min-width:0;flex:1">
+              <div class="pn-name" id="pcName">Acquisition_Agreement.pdf</div>
+              <div class="pn-status" id="pcStatus">Plaintext, on your device</div>
+            </div>
+            <span class="pn-pill" id="pcPill">Private</span>
+          </div>
+          <div class="pn-lines"><span></span><span></span><span></span><span></span></div>
+          <div class="pn-seal"><div class="lk">🔒</div><div class="lt">Sealed everywhere</div><div class="ls">No copy opens again — for anyone.</div></div>
+        </div>
+        <div class="pn-actions">
+          <button class="pnb go" id="bEncrypt">Encrypt</button>
+          <button class="pnb" id="bShare" disabled>Share</button>
+          <button class="pnb danger" id="bRevoke" disabled>Revoke</button>
+          <button class="pnb" id="bReset">Reset</button>
+        </div>
+        <div class="pn-log mono" id="pcLog">› press Encrypt to begin</div>
+      </div>
+    </div>
+  </section>
+
+  <div class="wrap"><div class="rule"></div></div>
+
+  <!-- STATS -->
+  <section class="block">
+    <div class="wrap rv">
+      <div class="stats" id="statsGrid">
+        <div class="stat"><div class="n" data-to="4.44" data-pre="$" data-suf="M" data-dec="2">$0M</div><div class="d">Average cost of a single data breach</div><div class="src">IBM · 2025</div></div>
+        <div class="stat"><div class="n" data-to="165" data-pre="$" data-suf="M">$0M</div><div class="d">What Dropbox paid for DocSend — controlling sent files is a need people pay for</div><div class="src">2021 acquisition</div></div>
+        <div class="stat"><div class="n" data-to="0">0</div><div class="d">Files &amp; keys Elur ever stores</div><div class="src">Non-custodial by design</div></div>
+      </div>
+    </div>
+  </section>
+
+  <div class="wrap"><div class="rule"></div></div>
+
+  <!-- PROBLEM -->
+  <section class="block">
+    <div class="wrap rv">
+      <div class="eyebrow"><span class="ix">01</span> The problem</div>
+      <p class="pquote">A contract. A medical record. A deal doc. You send it — and it's gone. <span class="x">You can't take it back.</span></p>
+      <p class="lead">Email, links, attachments: once a file leaves your hands, you've lost control of it forever — forwarded, leaked, or sitting in an inbox long after the deal is dead. Until now, "un-send" didn't exist for files.</p>
+    </div>
+  </section>
+
+  <div class="wrap"><div class="rule"></div></div>
+
+  <!-- HOW -->
+  <section class="block" id="how">
+    <div class="wrap rv">
+      <div class="eyebrow"><span class="ix">02</span> How it works</div>
+      <h2>Three steps. <em>No blockchain in sight.</em></h2>
+      <div class="steps">
+        <div class="step"><div class="sn">01</div><h3>Encrypt</h3><p>Drop in any file. It's encrypted on your device with AES-256 — the plaintext never leaves, and Elur never sees it.</p></div>
+        <div class="step"><div class="sn">02</div><h3>Share anywhere</h3><p>Send it however you already do — email, WhatsApp, AirDrop, a link. The recipient opens it in one tap, no account needed.</p></div>
+        <div class="step"><div class="sn">03</div><h3>Govern forever</h3><p>Set an expiry, cap the opens, watermark each view, or revoke entirely — any time. The rules change; the file never re-encrypts.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <div class="wrap"><div class="rule"></div></div>
+
+  <!-- WHY -->
+  <section class="block" id="why">
+    <div class="wrap rv">
+      <div class="eyebrow"><span class="ix">03</span> Why now</div>
+      <h2>Custody used to feel safe. <em>Then AI changed the deal.</em></h2>
+      <p class="lead">It once felt fine to keep your files on someone else's servers — the worst case was a human maybe glancing at one email out of billions. AI turned that into automatic processing of everything you store. And the providers keep switching it on by default:</p>
+      <div class="ailist">
+        <div class="airow"><span class="co">Dropbox</span><span class="desc">shipped a third-party-AI toggle <span class="by">on by default</span> that could route your file data to OpenAI.</span></div>
+        <div class="airow"><span class="co">LinkedIn</span><span class="desc">opted every user into generative-AI training <span class="by">by default</span>.</span></div>
+        <div class="airow"><span class="co">Slack</span><span class="desc">opted users into model training <span class="by">by default</span> — the opt-out was an email you had to send.</span></div>
+        <div class="airow"><span class="co">Microsoft</span><span class="desc">Recall <span class="by">screenshots your screen</span> to feed on-device AI.</span></div>
+        <div class="airow"><span class="co">Google</span><span class="desc">Gmail "smart features" that process your mail and attachments, found <span class="by">on by default</span> — now facing a class action.</span></div>
+      </div>
+      <p class="aikick">The point isn't that any one of them reads your contracts. It's that every custodian can <i>claim</i> it doesn't — and you have to trust a policy that keeps getting rewritten: <b>opt-out, by default, in your blind spot.</b> Elur isn't asking for trust. Hold your own key, and there's nothing for an AI to read.</p>
+    </div>
+  </section>
+
+  <div class="wrap"><div class="rule"></div></div>
+
+  <!-- COMPARE -->
+  <section class="block" id="compare">
+    <div class="wrap rv">
+      <div class="eyebrow"><span class="ix">04</span> How it compares</div>
+      <h2>The only tool that's governed <em>and</em> non-custodial.</h2>
+      <div class="cmpwrap"><table>
+        <thead><tr><th></th><th>Revoke a file<br>after it's sent</th><th>Non-custodial<br>(no server holds it)</th><th>Any recipient,<br>no account</th><th>Individual<br>friendly</th></tr></thead>
+        <tbody>
+          <tr><td>Password-protected PDF</td><td class="no">—</td><td class="yes">✓*</td><td class="yes">✓</td><td class="yes">✓</td></tr>
+          <tr><td>Gmail Confidential Mode</td><td class="yes">✓</td><td class="no">—†</td><td class="yes">✓</td><td class="yes">✓</td></tr>
+          <tr><td>DocSend / Dropbox</td><td class="yes">✓</td><td class="no">—</td><td class="yes">✓</td><td class="no">—</td></tr>
+          <tr><td>E2E storage (Proton, Tresorit)</td><td class="no">—‡</td><td class="no">—</td><td class="yes">✓</td><td class="yes">✓</td></tr>
+          <tr><td>Data rooms (Datasite, Intralinks)</td><td class="yes">✓</td><td class="no">—</td><td class="no">—</td><td class="no">—</td></tr>
+          <tr class="elurrow"><td>Elur</td><td class="yes">✓</td><td class="yes">✓</td><td class="yes">✓</td><td class="yes">✓</td></tr>
+        </tbody>
+      </table></div>
+      <p class="cmpnote">* You hold the key — but share the password once and the recipient keeps it forever. &nbsp;† Gmail Confidential Mode can revoke, but it isn't end-to-end encrypted — Google holds the readable copy, and its AI "smart features" process mail and attachments by default. Confidential is a promise; encryption is a property. &nbsp;‡ Share links can be disabled, but a copy that's already been downloaded stays open forever. Elur seals every copy, even ones already sent.</p>
+    </div>
+  </section>
+
+  <div class="wrap"><div class="rule"></div></div>
+
+  <!-- TRUST -->
+  <section class="block">
+    <div class="wrap rv">
+      <div class="eyebrow"><span class="ix">05</span> Built to be trusted</div>
+      <h2>Private by architecture — <em>not by promise.</em></h2>
+      <div class="trustgrid">
+        <div class="tcard"><div class="tn">— 01</div><h3>You hold the only key</h3><p>Your files and keys never touch an Elur server. No honeypot to breach, nothing to leak, nothing to hand over. Lose your device and one recovery phrase brings everything back.</p></div>
+        <div class="tcard"><div class="tn">— 02</div><h3>Abuse-resistant by design</h3><p>No anonymous public links — the flaw that turned Firefox Send into a malware channel. Access is identity-bound and revocable, and you can always recover every file you own — you can never be locked out of your own documents.</p></div>
+        <div class="tcard"><div class="tn">— 03</div><h3>Open &amp; verifiable</h3><p>Encryption powered by Seal, passwordless sign-in via zkLogin. Standard AES-256, with a free offline decryptor — so you can always get your files out, even if Elur disappears.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <div class="wrap"><div class="rule"></div></div>
+
+  <!-- WHO -->
+  <section class="block">
+    <div class="wrap rv">
+      <div class="eyebrow"><span class="ix">06</span> Who it's for</div>
+      <p class="wholist">Sharpest where a leaked file is a catastrophe, not an inconvenience — <b>legal</b> teams with privileged docs, <b>M&amp;A and finance</b> deal rooms, <b>healthcare</b> records, <b>journalists</b> protecting a source, <b>NGOs and human-rights</b> workers, <b>artists and creators</b>, and anyone who simply values their privacy.</p>
+    </div>
+  </section>
+
+  <!-- CTA -->
+  <section class="cta" id="join">
+    <div class="wrap rv">
+      <div class="eyebrow" style="justify-content:center"><span class="ix">07</span> Be first</div>
+      <h2 style="text-align:center">Get Elur when it launches.</h2>
+      <p class="lead">Join the waitlist — we'll tell you the moment the Mac app goes live, plus early access for the verticals that need it most.</p>
+      <!-- TODO before launch: create a free form endpoint (formspree.io → New Form → copy the
+           https://formspree.io/f/XXXXXXXX URL) and paste it into WAITLIST_ENDPOINT in the script below.
+           Until then the form shows an honest "not open yet" message instead of pretending to work. -->
+      <form class="waitlist" id="wlForm"><input type="email" id="wlEmail" placeholder="you@email.com" aria-label="Email address" required /><button type="submit">Notify me →</button></form>
+      <div class="wl-success" id="wlSuccess">You're on the list. We'll be in touch.</div>
+      <div class="wl-success" id="wlError" style="color:#c0392b">Hmm, that didn't go through — try again in a moment.</div>
+    </div>
+  </section>
+
+  <footer><div class="wrap">
+    <div>
+      <div class="brand" style="font-size:16px;letter-spacing:3px">
+        <svg viewBox="0 0 48 48" width="20" height="20" fill="none" stroke="#12141b" stroke-width="2.6" stroke-linecap="round"><path d="M24 24L24 4M24 11.6L28.9 8.2M24 11.6L19.1 8.2M24 24L41.3 14M34.7 17.8L40.2 20.3M34.7 17.8L35.3 11.8M24 24L41.3 34M34.7 30.2L35.3 36.2M34.7 30.2L40.2 27.7M24 24L24 44M24 36.4L19.1 39.8M24 36.4L28.9 39.8M24 24L6.7 34M13.3 30.2L7.8 27.7M13.3 30.2L12.7 36.2M24 24L6.7 14M13.3 17.8L12.7 11.8M13.3 17.8L7.8 20.3"/></svg>
+        ELUR
+      </div>
+      <p class="footnote">You shared it. You still own it.</p>
+    </div>
+    <div class="footmeta">© 2026 Elur<br>Encryption by Seal · sign-in by zkLogin</div>
+  </div></footer>
+
+<script>
+  const nav=document.getElementById('nav');
+  addEventListener('scroll',()=>nav.classList.toggle('scrolled',scrollY>20));
+
+  // reveal
+  const io=new IntersectionObserver((es)=>{es.forEach(e=>{if(e.isIntersecting){e.target.classList.add('in');io.unobserve(e.target);}})},{threshold:0.12});
+  document.querySelectorAll('.rv').forEach(el=>io.observe(el));
+
+  // count-up
+  const sObs=new IntersectionObserver((es)=>{es.forEach(e=>{if(!e.isIntersecting)return;sObs.unobserve(e.target);
+    e.target.querySelectorAll('.n').forEach(n=>{const to=parseFloat(n.dataset.to),dec=parseInt(n.dataset.dec||'0'),pre=n.dataset.pre||'',suf=n.dataset.suf||'';
+      let t0=null;function step(ts){if(!t0)t0=ts;const p=Math.min(1,(ts-t0)/1500);const e2=1-Math.pow(1-p,3);
+        n.textContent=pre+(to*e2).toFixed(dec)+suf;if(p<1)requestAnimationFrame(step);}requestAnimationFrame(step);});})},{threshold:.4});
+  const sg=document.getElementById('statsGrid');if(sg)sObs.observe(sg);
+
+  // playable demo
+  const pc=document.getElementById('play'),pcName=document.getElementById('pcName'),pcStatus=document.getElementById('pcStatus'),
+    pcPill=document.getElementById('pcPill'),pcLog=document.getElementById('pcLog'),pcIcon=document.getElementById('pcIcon');
+  const bEnc=document.getElementById('bEncrypt'),bShare=document.getElementById('bShare'),bRev=document.getElementById('bRevoke'),bReset=document.getElementById('bReset');
+  const orig='Acquisition_Agreement.pdf';
+  function stamp(){return new Date().toTimeString().slice(0,8);}
+  function log(t){pcLog.innerHTML='<span class="ts">'+stamp()+'</span>  '+t;}
+  function scrambleName(target){const hex='0123456789abcdef';let f=0;
+    const iv=setInterval(()=>{let s='';for(let i=0;i<12;i++)s+=hex[Math.floor(Math.random()*16)];
+      pcName.textContent=s+'.elur';f++;if(f>14){clearInterval(iv);pcName.textContent=target;}},45);}
+  bEnc.onclick=()=>{pc.classList.add('enc');pcIcon.textContent='🔐';scrambleName('a3f9c2b7e1d4.elur');
+    pcStatus.textContent='Encrypted · only you hold the key';pcPill.textContent='Encrypted';pcPill.className='pn-pill';
+    bEnc.disabled=true;bShare.disabled=false;log('Encrypted on device · AES-256 · opaque filename');};
+  bShare.onclick=()=>{pcStatus.textContent='Shared · access is live';pcPill.textContent='Live';pcPill.className='pn-pill live';
+    bShare.disabled=true;bRev.disabled=false;log('Link sent · recipient can open — no account needed');};
+  bRev.onclick=()=>{pc.classList.add('sealed');pcStatus.textContent='Sealed · access revoked everywhere';
+    pcPill.textContent='Sealed';pcPill.className='pn-pill sealed';bRev.disabled=true;
+    log('Revoked · every copy is now dark — nothing was deleted');};
+  bReset.onclick=()=>{pc.classList.remove('enc','sealed');pcIcon.textContent='📄';pcName.textContent=orig;
+    pcStatus.textContent='Plaintext, on your device';pcPill.textContent='Private';pcPill.className='pn-pill';
+    bEnc.disabled=false;bShare.disabled=true;bRev.disabled=true;log('› press Encrypt to begin');};
+
+  // waitlist — paste your Formspree (or similar) endpoint here before launch:
+  const WAITLIST_ENDPOINT='';
+  document.getElementById('wlForm').addEventListener('submit',async function(ev){ev.preventDefault();
+    const email=document.getElementById('wlEmail').value.trim();if(!email)return;
+    const ok=document.getElementById('wlSuccess'),err=document.getElementById('wlError');
+    if(!WAITLIST_ENDPOINT){
+      ok.textContent='The waitlist opens with the site — check back at launch.';
+      this.style.display='none';ok.classList.add('show');return;
+    }
+    try{
+      const r=await fetch(WAITLIST_ENDPOINT,{method:'POST',headers:{'Content-Type':'application/json',Accept:'application/json'},body:JSON.stringify({email})});
+      if(!r.ok)throw new Error();
+      this.style.display='none';err.classList.remove('show');ok.classList.add('show');
+    }catch(e){err.classList.add('show');}
+  });
+</script>
+</body>
+</html>
