@@ -29,12 +29,19 @@ const NETWORK = "testnet";
 const PORT = 3777;
 // Only Elur's own contract can be sponsored — nobody can drain the gas budget
 // through this server for anything else.
+// PACKAGE_ID = original-id (v1) — the app still mints/revokes here and Seal's
+// identity namespace lives here; left untouched so the working demo is unaffected.
 const PACKAGE_ID = "0x5bbbc73ce94e4cfd0f53bf6749e29203c88fd2d33fe4316a34027c976054b4ff";
+// RECORD_PKG = published-at (v2, 2026-06-10) — carries the record_open guard.
+// Only the relayer's record_open is routed here so the guard is live, with no
+// change to the app's mint/revoke/Seal paths.
+const RECORD_PKG = "0xe69d8597d9cdec396acd3c8f76f7a4e5eb1de52d07ec2344289b279ee995bb3b";
 const ALLOWED_TARGETS = [
   `${PACKAGE_ID}::access::mint`,
   `${PACKAGE_ID}::access::revoke`,
   `${PACKAGE_ID}::access::record_open`,
   `${PACKAGE_ID}::access::add_recipient`,
+  `${RECORD_PKG}::access::record_open`,
 ];
 const MODULE = "access";
 
@@ -110,7 +117,7 @@ createServer(async (req, res) => {
       if (!relayer) return json(res, 503, { error: "relayer not configured (add RELAYER_MNEMONIC to server/.env)" });
       if (!p.policyId) return json(res, 400, { error: "policyId required" });
       const tx = new Transaction();
-      tx.moveCall({ target: `${PACKAGE_ID}::${MODULE}::record_open`, arguments: [tx.object(p.policyId)] });
+      tx.moveCall({ target: `${RECORD_PKG}::${MODULE}::record_open`, arguments: [tx.object(p.policyId)] });
       const out = await suiClient.signAndExecuteTransaction({ signer: relayer, transaction: tx, options: { showEffects: true } });
       await suiClient.waitForTransaction({ digest: out.digest });
       console.log(new Date().toISOString(), "recorded open", out.digest);
