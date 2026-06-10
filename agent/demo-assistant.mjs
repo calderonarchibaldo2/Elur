@@ -3,7 +3,7 @@
 // it can no longer recall it. The agent kept what you allow, forgot what you revoked.
 
 import { reset, learn, accessibleMemories, revokeByLabel } from "./assistant.mjs";
-import { think, usingLLM } from "./brain.mjs";
+import { think, describeBrain } from "./brain.mjs";
 
 const L = (s = "") => console.log(s);
 async function ask(q) {
@@ -15,7 +15,7 @@ async function ask(q) {
 
 L("\n══════════════════════════════════════════════════════");
 L("  Elur — an AI deal-assistant with GOVERNED memory");
-L("  (brain: " + (usingLLM ? "Claude via API" : "local fallback — set ANTHROPIC_API_KEY for the full agent") + ")");
+L("  brain: " + (await describeBrain()));
 L("══════════════════════════════════════════════════════");
 
 reset(); // start each demo run with a clean memory
