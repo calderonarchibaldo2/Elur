@@ -1,3 +1,5 @@
 node_modules/
 .agent-key
+.agent-key.json
+.memories.json
 *.log
