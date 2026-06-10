@@ -66,6 +66,21 @@ export async function sealWrap(policyId, ck) {
   return encryptedObject; // Uint8Array
 }
 
+// Fast, cheap on-chain status read (no Seal round-trip) — mirrors the contract's
+// `is_active`. Used to show memory badges and to skip recalling sealed memories.
+export async function isPolicyActive(policyId) {
+  try {
+    const o = await suiClient.getObject({ id: policyId, options: { showContent: true } });
+    const f = o?.data?.content?.fields;
+    if (!f) return false;
+    if (f.revoked || f.destroyed) return false;
+    const now = Date.now();
+    if (Number(f.expiry_ms) !== 0 && now >= Number(f.expiry_ms)) return false;
+    if (Number(f.max_opens) !== 0 && Number(f.opens) >= Number(f.max_opens)) return false;
+    return true;
+  } catch { return false; }
+}
+
 // Seal-unwrap: asks the key servers for the key, which they release only if
 // seal_approve passes. Throws if the policy is revoked/expired/denied.
 export async function sealUnwrap(policyId, encryptedObject) {

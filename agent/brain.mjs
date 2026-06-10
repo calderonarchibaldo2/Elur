@@ -12,12 +12,18 @@ const OLLAMA_URL = process.env.OLLAMA_URL || "http://localhost:11434";
 const OLLAMA_MODEL = process.env.ELUR_OLLAMA_MODEL || "llama3.2";
 
 const SYSTEM =
-  "You are an assistant that may ONLY use the memories explicitly provided to you. " +
-  "Answer the user's question using only those memories. If the information needed is " +
-  "not in your accessible memories, clearly say you don't have access to it. Be concise.";
+  "You are an assistant whose memories are governed on-chain and can be revoked by the owner. " +
+  "Answer using ONLY the memories listed as accessible. Do NOT use outside or general knowledge, " +
+  "and do NOT suggest where else to look. If the question is about a memory listed as REVOKED, " +
+  "say in one short sentence that that memory has been revoked and you no longer have access to it. " +
+  "If it is about something you simply never knew, say you don't have a memory of it. " +
+  "Keep every answer to 1–2 sentences.";
 
-const buildContext = (memories) =>
-  memories.length ? memories.map((m) => `- ${m.label}: ${m.text}`).join("\n") : "(no accessible memories)";
+function buildContext(memories, sealed = []) {
+  const acc = memories.length ? memories.map((m) => `- ${m.label}: ${m.text}`).join("\n") : "(none)";
+  const rev = sealed.length ? sealed.map((l) => `- ${l}`).join("\n") : "(none)";
+  return `ACCESSIBLE memories:\n${acc}\n\nREVOKED memories (you no longer have access to these):\n${rev}`;
+}
 
 async function ollamaReachable() {
   try {
@@ -63,16 +69,18 @@ async function viaOllama(question, context) {
   return data.message?.content?.trim() || "(no answer)";
 }
 
-function fallback(memories, context) {
-  if (!memories.length) return "I have no memory I'm currently allowed to access about that.";
-  return "Based on the memories I can currently access:\n" + context;
+function fallback(memories, sealed) {
+  const parts = [];
+  if (memories.length) parts.push("I can access: " + memories.map((m) => `${m.label} (${m.text})`).join("; "));
+  if (sealed.length) parts.push("Revoked — I no longer have access to: " + sealed.join(", "));
+  return parts.length ? parts.join(". ") + "." : "I have no memory I'm currently allowed to access about that.";
 }
 
-export async function think(question, memories) {
-  const context = buildContext(memories);
+export async function think(question, memories, sealed = []) {
+  const context = buildContext(memories, sealed);
   if (KEY) return viaClaude(question, context);
   if (await ollamaReachable()) {
     try { return await viaOllama(question, context); } catch { /* fall through */ }
   }
-  return fallback(memories, context);
+  return fallback(memories, sealed);
 }

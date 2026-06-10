@@ -1,0 +1,194 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Elur — Agent Console</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;1,9..144,400&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper:#f4f2ec; --panel:#fffdf8; --ink:#12141b; --soft:#565b66; --faint:#82858e;
+    --accent:#1b46c2; --ok:#0f7a47; --bad:#c0392b;
+    --line:rgba(18,20,27,.14); --line2:rgba(18,20,27,.08); --softblue:#eef1ff;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--paper);color:var(--ink);font-family:Inter,-apple-system,sans-serif;-webkit-font-smoothing:antialiased;line-height:1.5;padding:26px 22px 40px}
+  .mono{font-family:"JetBrains Mono",monospace}
+  .serif{font-family:"Fraunces",Georgia,serif}
+  .wrap{max-width:1100px;margin:0 auto}
+
+  header{display:flex;align-items:center;gap:12px;padding-bottom:16px;border-bottom:1px solid var(--line2);margin-bottom:22px}
+  header svg{width:26px;height:26px}
+  header .wm{font-weight:600;letter-spacing:4px;font-size:17px}
+  header .title{font-family:"Fraunces";font-style:italic;font-size:17px;color:var(--soft)}
+  header .brain{margin-left:auto;font-family:"JetBrains Mono";font-size:11px;color:var(--accent);background:var(--softblue);border:1px solid #cdd8f5;border-radius:999px;padding:5px 12px}
+
+  .grid{display:grid;grid-template-columns:1.1fr .9fr;gap:22px}
+  @media(max-width:840px){.grid{grid-template-columns:1fr}}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;box-shadow:0 18px 50px rgba(18,20,27,.06);overflow:hidden}
+  .card h2{font-family:"JetBrains Mono";font-size:10.5px;letter-spacing:2px;text-transform:uppercase;color:var(--accent);font-weight:500;padding:16px 18px 0}
+
+  /* chat */
+  .chat{display:flex;flex-direction:column;min-height:440px}
+  .msgs{flex:1;padding:16px 18px;display:flex;flex-direction:column;gap:14px;overflow-y:auto;max-height:460px}
+  .msg{max-width:86%;font-size:14.5px;padding:11px 14px;border-radius:12px;white-space:pre-wrap}
+  .msg.you{align-self:flex-end;background:var(--accent);color:#fff;border-bottom-right-radius:4px}
+  .msg.bot{align-self:flex-start;background:#f0efe9;border:1px solid var(--line2);border-bottom-left-radius:4px}
+  .msg .used{display:block;margin-top:7px;font-family:"JetBrains Mono";font-size:10px;color:var(--faint)}
+  .ask{display:flex;gap:8px;padding:14px 18px;border-top:1px solid var(--line2)}
+  .ask input{flex:1;border:1px solid var(--line);border-radius:9px;padding:11px 13px;font-family:Inter;font-size:14px;outline:none;background:#fff}
+  .ask input:focus{border-color:var(--accent)}
+  button{font-family:Inter;font-weight:600;font-size:13.5px;border:none;border-radius:9px;padding:11px 16px;cursor:pointer;transition:.15s}
+  button.primary{background:var(--accent);color:#fff}
+  button.primary:hover{filter:brightness(1.08)}
+  button:disabled{opacity:.45;cursor:not-allowed}
+
+  /* memory panel */
+  .mempad{padding:14px 18px}
+  .seed{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap}
+  button.ghost{background:transparent;color:var(--accent);border:1px solid var(--accent)}
+  button.tiny{font-size:12px;padding:8px 12px}
+  .mem{border:1px solid var(--line2);border-radius:11px;padding:12px 13px;margin-bottom:10px;background:#fff}
+  .mem .top{display:flex;align-items:center;gap:9px;margin-bottom:5px}
+  .mem .label{font-family:"Fraunces";font-weight:500;font-size:15px}
+  .badge{font-family:"JetBrains Mono";font-size:10px;font-weight:500;padding:3px 9px;border-radius:999px;letter-spacing:.5px}
+  .badge.active{background:#e3f6ec;color:var(--ok)}
+  .badge.revoked{background:#fde7e7;color:var(--bad)}
+  .mem .bid{font-family:"JetBrains Mono";font-size:10px;color:var(--faint);word-break:break-all;margin-bottom:8px}
+  .mem .row{display:flex;gap:8px;align-items:center}
+  button.revoke{background:transparent;color:var(--bad);border:1px solid #e3b3b3;font-size:12px;padding:7px 12px}
+  button.revoke:hover:not(:disabled){background:var(--bad);color:#fff}
+  .empty{color:var(--faint);font-size:13.5px;font-style:italic;padding:8px 0}
+  .teach{margin-top:8px;border-top:1px solid var(--line2);padding-top:14px;display:flex;flex-direction:column;gap:8px}
+  .teach input{border:1px solid var(--line);border-radius:8px;padding:9px 11px;font-size:13px;font-family:Inter;outline:none}
+  .teach input:focus{border-color:var(--accent)}
+
+  .status{font-family:"JetBrains Mono";font-size:11px;color:var(--soft);margin:10px 2px 0;min-height:16px}
+  .foot{text-align:center;margin-top:24px;font-family:"Fraunces";font-style:italic;color:var(--soft);font-size:14px}
+  .spin{display:inline-block;width:11px;height:11px;border:2px solid var(--line);border-top-color:var(--accent);border-radius:50%;animation:s .7s linear infinite;vertical-align:-1px;margin-right:6px}
+  @keyframes s{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <svg viewBox="0 0 48 48" fill="none" stroke="#12141b" stroke-width="2.6" stroke-linecap="round"><path d="M24 24L24 4M24 11.6L28.9 8.2M24 11.6L19.1 8.2M24 24L41.3 14M34.7 17.8L40.2 20.3M34.7 17.8L35.3 11.8M24 24L41.3 34M34.7 30.2L35.3 36.2M34.7 30.2L40.2 27.7M24 24L24 44M24 36.4L19.1 39.8M24 36.4L28.9 39.8M24 24L6.7 34M13.3 30.2L7.8 27.7M13.3 30.2L12.7 36.2M24 24L6.7 14M13.3 17.8L12.7 11.8M13.3 17.8L7.8 20.3"/></svg>
+    <span class="wm">ELUR</span>
+    <span class="title">Agent Console</span>
+    <span class="brain" id="brain">…</span>
+  </header>
+
+  <div class="grid">
+    <!-- CHAT -->
+    <div class="card chat">
+      <h2>Talk to the agent</h2>
+      <div class="msgs" id="msgs">
+        <div class="msg bot">I'm an assistant whose memory is governed on-chain. Teach me something, then ask me about it — and revoke a memory anytime to watch me forget it.</div>
+      </div>
+      <div class="ask">
+        <input id="q" placeholder="Ask the agent…" />
+        <button class="primary" id="askBtn">Ask</button>
+      </div>
+    </div>
+
+    <!-- MEMORY -->
+    <div class="card">
+      <h2>Governed memory · on Walrus</h2>
+      <div class="mempad">
+        <div class="seed">
+          <button class="ghost tiny" id="seedBtn">Load demo memories</button>
+          <button class="ghost tiny" id="resetBtn">Reset</button>
+        </div>
+        <div id="mems"><div class="empty">No memories yet.</div></div>
+        <div class="teach">
+          <input id="tLabel" placeholder="label (e.g. budget)" />
+          <input id="tText" placeholder="what the agent should remember…" />
+          <button class="primary" id="teachBtn">Teach the agent</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="status mono" id="status"></div>
+  <div class="foot">Local model · encrypted memory on Walrus · on-chain governance — nothing custodial. You shared it. You still own it.</div>
+</div>
+
+<script>
+const $ = (s) => document.querySelector(s);
+const api = async (path, body) => {
+  const r = await fetch(path, body ? { method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(body) } : {});
+  const d = await r.json();
+  if (!r.ok) throw new Error(d.error || "error");
+  return d;
+};
+const setStatus = (html) => $("#status").innerHTML = html;
+const enable = (on) => document.querySelectorAll("button,input").forEach(b=>b.disabled=!on);
+const busy = (on, txt) => { enable(!on); if (on) setStatus(`<span class="spin"></span>${txt}`); else setStatus(""); };
+
+function addMsg(who, text, used) {
+  const d = document.createElement("div");
+  d.className = "msg " + who;
+  d.textContent = text;
+  if (used && used.length) { const u = document.createElement("span"); u.className="used"; u.textContent = "recalled: " + used.join(", "); d.appendChild(u); }
+  $("#msgs").appendChild(d); $("#msgs").scrollTop = 1e9;
+}
+
+async function refresh() {
+  const s = await api("/api/state");
+  $("#brain").textContent = s.brain;
+  const box = $("#mems");
+  if (!s.memories.length) { box.innerHTML = `<div class="empty">No memories yet.</div>`; return; }
+  box.innerHTML = "";
+  for (const m of s.memories) {
+    const el = document.createElement("div");
+    el.className = "mem";
+    el.innerHTML = `<div class="top"><span class="label">${m.label}</span>
+      <span class="badge ${m.active?'active':'revoked'}">${m.active?'● active':'● revoked'}</span></div>
+      <div class="bid">walrus:${m.blobId}</div>
+      <div class="row">${m.active ? `<button class="revoke" data-label="${m.label}">Revoke on-chain</button>` : `<span class="empty" style="padding:0">sealed — the agent can't read this</span>`}</div>`;
+    box.appendChild(el);
+  }
+  box.querySelectorAll(".revoke").forEach(b => b.onclick = () => revoke(b.dataset.label));
+}
+
+async function ask() {
+  const q = $("#q").value.trim(); if (!q) return;
+  $("#q").value = ""; addMsg("you", q);
+  busy(true, "asking the agent (checking the on-chain gate)…");
+  try { const r = await api("/api/ask", { question:q }); addMsg("bot", r.answer, r.used); }
+  catch(e){ addMsg("bot", "⚠ " + e.message); }
+  finally { busy(false); }
+}
+async function teach(label, text) {
+  busy(true, `sealing “${label}” to an on-chain policy and storing on Walrus…`);
+  try { await api("/api/learn", { label, text }); await refresh(); }
+  catch(e){ setStatus("⚠ " + e.message); }
+  finally { busy(false); }
+}
+async function revoke(label) {
+  busy(true, `revoking “${label}” on-chain…`);
+  try { await api("/api/revoke", { label }); await refresh(); setStatus(`✓ “${label}” revoked — ask the agent again and watch it forget.`); enable(true); }
+  catch(e){ setStatus("⚠ " + e.message); enable(true); }
+}
+
+$("#askBtn").onclick = ask;
+$("#q").addEventListener("keydown", e => { if (e.key === "Enter") ask(); });
+$("#teachBtn").onclick = () => { const l=$("#tLabel").value.trim(), t=$("#tText").value.trim(); if(l&&t){$("#tLabel").value="";$("#tText").value="";teach(l,t);} };
+$("#seedBtn").onclick = async () => {
+  await teach("budget", "Our maximum acquisition budget is $4.2M — strictly confidential.");
+  await teach("counsel", "Our lead counsel is Maria Restrepo at Lex Andina.");
+  setStatus("✓ demo memories loaded — ask the agent, then revoke the budget.");
+};
+$("#resetBtn").onclick = async () => {
+  busy(true,"clearing memory…");
+  try { await api("/api/reset"); await refresh(); $("#msgs").innerHTML=""; addMsg("bot","Memory cleared. Teach me something new."); }
+  catch(e){ setStatus("⚠ " + e.message); }
+  finally { busy(false); }
+};
+
+refresh();
+</script>
+</body>
+</html>

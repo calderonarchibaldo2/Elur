@@ -66,6 +66,82 @@ fn zip_path(folder: String) -> Result<String, String> {
     Ok(STANDARD.encode(bytes))
 }
 
+// ---- Walrus (agent memory storage) ----
+// Shell out to the `walrus` CLI, exactly like zip_path uses `zip`. GUI apps don't
+// inherit the shell PATH, so resolve the suiup-installed binary explicitly.
+fn walrus_bin() -> String {
+    if let Ok(home) = std::env::var("HOME") {
+        let p = format!("{}/.local/bin/walrus", home);
+        if std::path::Path::new(&p).exists() {
+            return p;
+        }
+    }
+    "walrus".to_string()
+}
+
+fn extract_blob_id(s: &str) -> Option<String> {
+    // tolerant of `"blobId":"X"` and `"blobId": "X"`
+    let i = s.find("blobId")?;
+    let after = &s[i + 6..];
+    let colon = after.find(':')?;
+    let after = &after[colon + 1..];
+    let q1 = after.find('"')?;
+    let after = &after[q1 + 1..];
+    let q2 = after.find('"')?;
+    Some(after[..q2].to_string())
+}
+
+#[tauri::command]
+fn walrus_store(b64: String, epochs: u32) -> Result<String, String> {
+    let bytes = STANDARD.decode(b64.as_bytes()).map_err(|e| e.to_string())?;
+    let mut tmp = std::env::temp_dir();
+    tmp.push(format!("elur-mem-{}.bin", std::process::id()));
+    std::fs::write(&tmp, &bytes).map_err(|e| e.to_string())?;
+    let out = std::process::Command::new(walrus_bin())
+        .args([
+            "store",
+            &tmp.to_string_lossy(),
+            "--epochs",
+            &epochs.to_string(),
+            "--json",
+        ])
+        .output()
+        .map_err(|e| e.to_string())?;
+    let _ = std::fs::remove_file(&tmp);
+    let stdout = String::from_utf8_lossy(&out.stdout);
+    extract_blob_id(&stdout).ok_or_else(|| {
+        format!(
+            "could not parse blobId. stderr: {}",
+            String::from_utf8_lossy(&out.stderr)
+                .chars()
+                .take(300)
+                .collect::<String>()
+        )
+    })
+}
+
+#[tauri::command]
+fn walrus_read(id: String) -> Result<String, String> {
+    let mut tmp = std::env::temp_dir();
+    tmp.push(format!("elur-read-{}.bin", std::process::id()));
+    let out = std::process::Command::new(walrus_bin())
+        .args(["read", &id, "--out", &tmp.to_string_lossy()])
+        .output()
+        .map_err(|e| e.to_string())?;
+    if !out.status.success() {
+        return Err(format!(
+            "walrus read failed: {}",
+            String::from_utf8_lossy(&out.stderr)
+                .chars()
+                .take(300)
+                .collect::<String>()
+        ));
+    }
+    let bytes = std::fs::read(&tmp).map_err(|e| e.to_string())?;
+    let _ = std::fs::remove_file(&tmp);
+    Ok(STANDARD.encode(bytes))
+}
+
 #[tauri::command]
 fn keychain_set(value: String) -> Result<(), String> {
     let entry = keyring::Entry::new(SERVICE, ACCOUNT).map_err(|e| e.to_string())?;
@@ -169,6 +245,8 @@ fn main() {
             delete_path,
             reveal_in_finder,
             zip_path,
+            walrus_store,
+            walrus_read,
             keychain_set,
             keychain_get,
             keychain_clear,

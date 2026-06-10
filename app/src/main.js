@@ -96,8 +96,18 @@ async function aesDecrypt(iv, ct, ck) {
 }
 
 // ---- tabs ----
-$("#tabOpen").onclick = () => { $("#tabOpen").classList.add("on"); $("#tabShare").classList.remove("on"); $("#paneOpen").style.display = ""; $("#paneShare").style.display = "none"; };
-$("#tabShare").onclick = () => { $("#tabShare").classList.add("on"); $("#tabOpen").classList.remove("on"); $("#paneShare").style.display = ""; $("#paneOpen").style.display = "none"; };
+function switchTab(which) {
+  const tabs = { Open: "tabOpen", Share: "tabShare", Agent: "tabAgent" };
+  const panes = { Open: "paneOpen", Share: "paneShare", Agent: "paneAgent" };
+  for (const k of Object.keys(tabs)) {
+    $("#" + tabs[k]).classList.toggle("on", k === which);
+    $("#" + panes[k]).style.display = k === which ? "" : "none";
+  }
+  if (which === "Agent" && typeof agentRefreshAuth === "function") agentRefreshAuth();
+}
+$("#tabOpen").onclick = () => switchTab("Open");
+$("#tabShare").onclick = () => switchTab("Share");
+$("#tabAgent").onclick = () => switchTab("Agent");
 
 // ---- OPEN (recipient) ----
 // opts.viewOnly  → sender chose "view only": no export, watermarked, drag/right-click blocked.
@@ -577,3 +587,185 @@ async function revokeShare(i) {
   const tk=q('#tourSkip'); if(tk) tk.onclick = end;
   window.addEventListener('resize', ()=>{ const t=q('#tourTip'); if(t && t.style.display==='block') place(ti); });
 })();
+
+// ════════════════════════════════════════════════════════════════════
+// AGENT TAB — governed, revocable memory for an AI agent.
+// Reuses the app's engine (mint via exec, Seal wrap/unwrap, sponsored gas,
+// zkLogin identity) + Walrus storage (native walrus CLI via Rust) + a local
+// model via Ollama. The signed-in identity owns and revokes the memories.
+// ════════════════════════════════════════════════════════════════════
+const AGENT_MODEL = "llama3.2";
+const AGENT_SYSTEM =
+  "You are an assistant whose memories are governed on-chain and can be revoked by the owner. " +
+  "Answer using ONLY the memories listed as accessible. Do NOT use outside or general knowledge, " +
+  "and do NOT suggest where else to look. If the question is about a memory listed as REVOKED, " +
+  "say in one short sentence that it was revoked and you no longer have access to it. " +
+  "Keep answers to 1-2 sentences.";
+
+let agentMems = [];            // [{ label, blobId, policyId, capId }]
+const agentTextCache = new Map(); // blobId -> plaintext
+
+// lightweight AES-GCM for short memories (no size-class padding)
+async function memEncrypt(text, ck) {
+  const key = await subtle.importKey("raw", ck, "AES-GCM", false, ["encrypt"]);
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const ct = new Uint8Array(await subtle.encrypt({ name: "AES-GCM", iv }, key, new TextEncoder().encode(text)));
+  return { iv, ct };
+}
+async function memDecrypt(iv, ct, ck) {
+  const key = await subtle.importKey("raw", ck, "AES-GCM", false, ["decrypt"]);
+  return new TextDecoder().decode(await subtle.decrypt({ name: "AES-GCM", iv }, key, ct));
+}
+
+async function agentIsActive(policyId) {
+  try {
+    const o = await suiClient.getObject({ id: policyId, options: { showContent: true } });
+    const f = o?.data?.content?.fields;
+    if (!f || f.revoked || f.destroyed) return false;
+    if (Number(f.expiry_ms) !== 0 && Date.now() >= Number(f.expiry_ms)) return false;
+    if (Number(f.max_opens) !== 0 && Number(f.opens) >= Number(f.max_opens)) return false;
+    return true;
+  } catch { return false; }
+}
+
+// remember: encrypt → mint policy (sponsored) → Seal-wrap → store on Walrus
+async function agentRemember(label, text) {
+  const ck = crypto.getRandomValues(new Uint8Array(32));
+  const { iv, ct } = await memEncrypt(text, ck);
+  const mint = new Transaction();
+  mint.moveCall({ target: `${PACKAGE_ID}::${MODULE}::mint`, arguments: [mint.pure.u8(0), mint.pure.u64(0), mint.pure.u64(0), mint.pure.vector("u8", [1]), mint.object(CLOCK)] });
+  const res = await exec(mint, "mint memory");
+  const policyId = found(res.objectChanges, "::access::AccessPolicy").objectId;
+  const capId = found(res.objectChanges, "::access::OwnerCap").objectId;
+  const { encryptedObject } = await newSeal().encrypt({ threshold: 1, packageId: PACKAGE_ID, id: policyId, data: ck });
+  const pkg = JSON.stringify({ v: 1, policyId, ek: b64(encryptedObject), iv: b64(iv), ct: b64(ct) });
+  const blobId = await invoke("walrus_store", { b64: b64(new TextEncoder().encode(pkg)), epochs: 5 });
+  agentMems.push({ label, blobId, policyId, capId });
+}
+
+// recall a memory's text through the Seal gate (throws if revoked)
+async function agentRecall(blobId, policyId) {
+  if (agentTextCache.has(blobId)) return agentTextCache.get(blobId);
+  const raw = ub64(await invoke("walrus_read", { id: blobId }));
+  const pkg = JSON.parse(new TextDecoder().decode(raw));
+  const ephemeral = new Ed25519Keypair();
+  const sessionKey = await SessionKey.create({ address: ephemeral.toSuiAddress(), packageId: PACKAGE_ID, ttlMin: 10, signer: ephemeral, suiClient });
+  const ck = await newSeal().decrypt({ data: ub64(pkg.ek), sessionKey, txBytes: await approvalTxBytes(pkg.policyId) });
+  const text = await memDecrypt(ub64(pkg.iv), ub64(pkg.ct), new Uint8Array(ck));
+  agentTextCache.set(blobId, text);
+  return text;
+}
+
+async function agentView() {
+  const accessible = [], sealed = [];
+  for (const m of agentMems) {
+    if (await agentIsActive(m.policyId)) {
+      try { accessible.push({ label: m.label, text: await agentRecall(m.blobId, m.policyId) }); }
+      catch { sealed.push(m.label); }
+    } else sealed.push(m.label);
+  }
+  return { accessible, sealed };
+}
+
+async function agentRevoke(label) {
+  const m = agentMems.find((x) => x.label === label);
+  if (!m) return;
+  const tx = new Transaction();
+  tx.moveCall({ target: `${PACKAGE_ID}::${MODULE}::revoke`, arguments: [tx.object(m.capId), tx.object(m.policyId)] });
+  await exec(tx, "revoke memory");
+}
+
+async function agentThink(question, accessible, sealed) {
+  const ctx =
+    "ACCESSIBLE memories:\n" + (accessible.map((m) => `- ${m.label}: ${m.text}`).join("\n") || "(none)") +
+    "\n\nREVOKED memories (no access):\n" + (sealed.map((l) => `- ${l}`).join("\n") || "(none)");
+  try {
+    const r = await fetch("http://localhost:11434/api/chat", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ model: AGENT_MODEL, stream: false, messages: [
+        { role: "system", content: AGENT_SYSTEM },
+        { role: "user", content: `My memories:\n${ctx}\n\nQuestion: ${question}` },
+      ] }),
+    });
+    if (!r.ok) throw new Error();
+    const d = await r.json();
+    return (d.message?.content || "").trim() || "(no answer)";
+  } catch {
+    if (accessible.length) return "I can access: " + accessible.map((m) => `${m.label} (${m.text})`).join("; ") + ".";
+    if (sealed.length) return "That memory was revoked — I no longer have access to it.";
+    return "I have no memory I'm allowed to access about that.";
+  }
+}
+
+// ---- agent UI ----
+function agentRefreshAuth() {
+  const ok = canSign();
+  $("#agentGate").style.display = ok ? "none" : "";
+  $("#agentMain").style.display = ok ? "" : "none";
+  if (ok) {
+    const id = (zkSigner && (zkSigner.email || zkSigner.address)) || (senderKeypair && senderKeypair.toSuiAddress()) || "you";
+    $("#aAddr").textContent = "· " + (id.length > 28 ? id.slice(0, 6) + "…" + id.slice(-4) : id);
+    fetch("http://localhost:11434/api/tags").then((r) => $("#aBrain").textContent = r.ok ? `local model (${AGENT_MODEL}) — nothing leaves the machine` : "fallback brain").catch(() => $("#aBrain").textContent = "fallback brain (start Ollama for natural language)");
+    agentRenderMems();
+  }
+}
+function aBusy(on, txt) {
+  $("#paneAgent").querySelectorAll("button,input").forEach((b) => b.disabled = on);
+  $("#aStatus").textContent = on ? txt : "";
+}
+function aAddMsg(who, text, used) {
+  const d = document.createElement("div");
+  d.className = who === "you" ? "ayou" : "abot";
+  d.textContent = text;
+  if (used && used.length) { const u = document.createElement("span"); u.className = "ause"; u.textContent = "recalled: " + used.join(", "); d.appendChild(u); }
+  $("#aMsgs").appendChild(d); $("#aMsgs").scrollTop = 1e9;
+}
+async function agentRenderMems() {
+  const box = $("#aMems");
+  if (!agentMems.length) { box.innerHTML = `<p class="muted small">No memories yet.</p>`; return; }
+  box.innerHTML = "";
+  for (const m of agentMems) {
+    const active = await agentIsActive(m.policyId);
+    const el = document.createElement("div");
+    el.className = "amem";
+    el.innerHTML = `<div class="atop"><span class="albl">${m.label}</span><span class="abadge ${active ? "on" : "off"}">${active ? "● active" : "● revoked"}</span></div>
+      <div class="abid">walrus:${m.blobId}</div>
+      ${active ? `<button class="arev" data-l="${m.label}">Revoke on-chain</button>` : `<span class="asealed">sealed — the agent can't read this</span>`}`;
+    box.appendChild(el);
+  }
+  box.querySelectorAll(".arev").forEach((b) => b.onclick = () => agentDoRevoke(b.dataset.l));
+}
+async function agentTeach(label, text) {
+  aBusy(true, `sealing “${label}” to a policy and storing on Walrus…`);
+  try { await agentRemember(label, text); await agentRenderMems(); $("#aStatus").textContent = ""; }
+  catch (e) { $("#aStatus").textContent = "❌ " + (e.message || String(e)).slice(0, 160); }
+  finally { $("#paneAgent").querySelectorAll("button,input").forEach((b) => b.disabled = false); }
+}
+async function agentDoRevoke(label) {
+  aBusy(true, `revoking “${label}” on-chain…`);
+  try { await agentRevoke(label); await agentRenderMems(); $("#aStatus").textContent = `✓ “${label}” revoked — ask the agent and watch it forget.`; }
+  catch (e) { $("#aStatus").textContent = "❌ " + (e.message || String(e)).slice(0, 160); }
+  finally { $("#paneAgent").querySelectorAll("button,input").forEach((b) => b.disabled = false); }
+}
+async function agentAsk() {
+  const q = $("#aQ").value.trim(); if (!q) return;
+  $("#aQ").value = ""; aAddMsg("you", q);
+  aBusy(true, "asking the agent (checking the on-chain gate)…");
+  try { const { accessible, sealed } = await agentView(); aAddMsg("bot", await agentThink(q, accessible, sealed), accessible.map((m) => m.label)); }
+  catch (e) { aAddMsg("bot", "⚠ " + (e.message || String(e)).slice(0, 160)); }
+  finally { aBusy(false); }
+}
+
+$("#aSignin").onclick = async () => {
+  try { $("#aGateStatus").textContent = "Opening Google sign-in…"; zkSigner = await signInWithGoogle((m) => $("#aGateStatus").textContent = m); $("#aGateStatus").textContent = ""; uiUnlocked(zkSigner.address, zkSigner.email); agentRefreshAuth(); }
+  catch (e) { $("#aGateStatus").textContent = "❌ " + (e.message || String(e)).slice(0, 160); }
+};
+$("#aTeach").onclick = () => { const l = $("#aLabel").value.trim(), t = $("#aText").value.trim(); if (l && t) { $("#aLabel").value = ""; $("#aText").value = ""; agentTeach(l, t); } };
+$("#aAsk").onclick = agentAsk;
+$("#aQ").addEventListener("keydown", (e) => { if (e.key === "Enter") agentAsk(); });
+$("#aReset").onclick = () => { agentMems = []; agentTextCache.clear(); agentRenderMems(); $("#aMsgs").innerHTML = ""; aAddMsg("bot", "Memory cleared. Teach me something new."); };
+$("#aSeed").onclick = async () => {
+  await agentTeach("budget", "Our maximum acquisition budget is $4.2M — strictly confidential.");
+  await agentTeach("counsel", "Our lead counsel is Maria Restrepo at Lex Andina.");
+  $("#aStatus").textContent = "✓ demo memories loaded — ask the agent, then revoke the budget.";
+};

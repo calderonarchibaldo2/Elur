@@ -2,13 +2,13 @@
 // It remembers sensitive facts → answers from them → you revoke one on-chain →
 // it can no longer recall it. The agent kept what you allow, forgot what you revoked.
 
-import { reset, learn, accessibleMemories, revokeByLabel } from "./assistant.mjs";
+import { reset, learn, memoryView, revokeByLabel } from "./assistant.mjs";
 import { think, describeBrain } from "./brain.mjs";
 
 const L = (s = "") => console.log(s);
 async function ask(q) {
-  const mems = await accessibleMemories();
-  const a = await think(q, mems);
+  const { accessible, sealed } = await memoryView();
+  const a = await think(q, accessible, sealed);
   L("🧑  " + q);
   L("🤖  " + a + "\n");
 }

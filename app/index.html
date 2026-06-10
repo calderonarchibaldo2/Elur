@@ -5,6 +5,22 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Elur</title>
 <link rel="stylesheet" href="/src/style.css" />
+<style>
+  /* Agent tab — chat bubbles + memory cards (reuses app variables/classes) */
+  .ayou,.abot{max-width:88%;font-size:14px;padding:10px 13px;border-radius:12px;white-space:pre-wrap;line-height:1.45}
+  .ayou{align-self:flex-end;background:#2563eb;color:#fff;border-bottom-right-radius:4px}
+  .abot{align-self:flex-start;background:#f1f3f7;border:1px solid #e6e9ef;border-bottom-left-radius:4px}
+  .ause{display:block;margin-top:6px;font-size:10px;opacity:.7;font-family:ui-monospace,monospace}
+  .amem{border:1px solid #e6e9ef;border-radius:10px;padding:11px 12px;margin-bottom:9px;background:#fff}
+  .amem .atop{display:flex;align-items:center;gap:8px;margin-bottom:4px}
+  .amem .albl{font-weight:600;font-size:14.5px}
+  .abadge{font-size:10px;font-weight:600;padding:3px 8px;border-radius:999px;font-family:ui-monospace,monospace}
+  .abadge.on{background:#e3f6ec;color:#0f7a47}.abadge.off{background:#fde7e7;color:#c0392b}
+  .amem .abid{font-size:10px;color:#94a3b8;font-family:ui-monospace,monospace;word-break:break-all;margin-bottom:7px}
+  .arev{background:transparent;color:#c0392b;border:1px solid #e3b3b3;border-radius:8px;font-size:12px;padding:6px 11px;cursor:pointer}
+  .arev:hover:not(:disabled){background:#c0392b;color:#fff}
+  .asealed{font-size:12px;color:#94a3b8;font-style:italic}
+</style>
 </head>
 <body>
   <div class="topbar">
@@ -27,6 +43,7 @@
     <div class="tabs">
       <div class="tab on" id="tabOpen">Open a file</div>
       <div class="tab" id="tabShare">Encrypt a file</div>
+      <div class="tab" id="tabAgent">Agent</div>
     </div>
 
     <!-- OPEN (recipient) -->
@@ -146,6 +163,54 @@
           <div class="lab">Your shares</div>
           <div id="shares"></div>
         </div>
+      </div>
+    </div>
+
+    <!-- AGENT (governed memory for an AI agent) -->
+    <div id="paneAgent" style="display:none">
+      <div class="card pad" id="agentGate">
+        <div class="lab">Give your AI agent a memory you control</div>
+        <p class="muted small" style="margin-top:0">Your agent's memories are encrypted, stored on Walrus, and governed by your identity on-chain. Revoke one anytime — and the agent forgets it. Sign in to begin.</p>
+        <button class="btn primary block" id="aSignin" style="margin-top:12px">
+          <svg width="18" height="18" viewBox="0 0 48 48"><path fill="#fff" d="M43.6 20.1H42V20H24v8h11.3C33.7 32.7 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.9 1.2 8 3l5.7-5.7C34.3 6.1 29.4 4 24 4 13 4 4 13 4 24s9 20 20 20 20-9 20-20c0-1.3-.1-2.7-.4-3.9z"/></svg>
+          Sign in with Google
+        </button>
+        <div class="status" id="aGateStatus"></div>
+      </div>
+
+      <div id="agentMain" style="display:none">
+        <div class="idbar"><span class="dot"></span> Agent governed by <span class="muted addr" id="aAddr"></span><span class="sp"></span><span class="mono" id="aBrain" style="font-size:11px;color:var(--accent)">…</span></div>
+
+        <div class="sec">
+          <div class="lab"><span class="num">1</span> Governed memory · on Walrus</div>
+          <div class="card pad">
+            <div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap">
+              <button class="btn ghost" id="aSeed" style="padding:8px 12px;font-size:13px">Load demo memories</button>
+              <button class="btn ghost" id="aReset" style="padding:8px 12px;font-size:13px">Reset</button>
+            </div>
+            <div id="aMems"><p class="muted small">No memories yet.</p></div>
+            <div style="display:flex;flex-direction:column;gap:8px;margin-top:10px;border-top:1px solid var(--line2,#eee);padding-top:12px">
+              <input class="inp" id="aLabel" placeholder="label (e.g. budget)" />
+              <input class="inp" id="aText" placeholder="what the agent should remember…" />
+              <button class="btn primary" id="aTeach">Teach the agent</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="sec">
+          <div class="lab"><span class="num">2</span> Talk to your agent</div>
+          <div class="card pad">
+            <div id="aMsgs" style="display:flex;flex-direction:column;gap:11px;min-height:120px;max-height:300px;overflow-y:auto;margin-bottom:12px">
+              <div class="abot">Teach me something, then ask me about it — and revoke a memory anytime to watch me forget it.</div>
+            </div>
+            <div style="display:flex;gap:8px">
+              <input class="inp" id="aQ" placeholder="Ask your agent…" style="flex:1" />
+              <button class="btn primary" id="aAsk">Ask</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="status" id="aStatus"></div>
       </div>
     </div>
 
