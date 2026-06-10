@@ -165,9 +165,26 @@ entry fun bind_device(cap: &OwnerCap, policy: &mut AccessPolicy, fingerprint: ve
 
 /// Record an open (for max_opens accounting + the audit trail). Separate tx; the gate
 /// only reads `opens`.
+///
+/// GUARDED (was previously unguarded): the caller must be authorized to open this
+/// policy — the same check `seal_approve` enforces. Without this, anyone could spam
+/// `record_open` to push `opens` past `max_opens` and lock out the real recipient
+/// (a denial-of-access grief, most damaging in identity mode). Now only an owner,
+/// an allow-listed recipient, or a bearer-mode opener (the relayer's path for
+/// anonymous recipients) can increment the counter.
+///
+/// Residual, by design: in bearer mode with an empty allowlist anyone who passes
+/// `bearer_open` can record — but in that mode they can also decrypt, so this grants
+/// no power they didn't already have. max_opens for bearer files is best-effort;
+/// device-binding + watermark are the real bearer protections.
 entry fun record_open(policy: &mut AccessPolicy, ctx: &TxContext) {
+    let s = ctx.sender();
+    let is_owner = s == policy.owner;
+    let is_listed = policy.allowlist.contains(&s);
+    let bearer_open = policy.mode == MODE_BEARER && policy.allowlist.is_empty();
+    assert!(is_owner || is_listed || bearer_open, ENoAccess);
     policy.opens = policy.opens + 1;
-    event::emit(AccessGranted { policy: object::id(policy), who: ctx.sender(), opens: policy.opens });
+    event::emit(AccessGranted { policy: object::id(policy), who: s, opens: policy.opens });
 }
 
 // =====================================================================
