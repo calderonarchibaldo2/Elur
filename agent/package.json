@@ -1,0 +1,13 @@
+{
+  "name": "elur-agent",
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Elur — governed, revocable memory for AI agents, on Walrus + Seal (Sui Overflow 2026, Walrus track).",
+  "scripts": {
+    "step1": "node test-step1-walrus-crypto.mjs"
+  },
+  "dependencies": {
+    "@mysten/sui": "^1.0.0",
+    "@mysten/seal": "^0.4.0"
+  }
+}
