@@ -1,0 +1,345 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Elur — You shared it. You still own it.</title>
+<meta name="description" content="Governed, revocable access to your documents — for people and for AI agents. Encrypted on your device, enforced on a public ledger, revocable from anywhere. The custodian is you. Elur can't read your files." />
+
+<!-- ═══ SOCIAL CARDS ═══ -->
+<meta property="og:type" content="website" />
+<meta property="og:title" content="Elur — You shared it. You still own it." />
+<meta property="og:description" content="Governed, revocable access for documents — for people and AI agents. The custodian is you. Elur can't read your files." />
+<meta property="og:url" content="https://elur.io/" />
+<meta property="og:image" content="https://elur.io/og.png" />
+<meta property="og:image:width" content="1200" />
+<meta property="og:image:height" content="630" />
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="theme-color" content="#16243f" />
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48'%3E%3Crect width='48' height='48' rx='11' fill='%2316243f'/%3E%3Cg fill='none' stroke='%23f4efe4' stroke-width='2.6' stroke-linecap='round'%3E%3Cpath d='M24 24L24 7M24 13.5L28.2 10.6M24 13.5L19.8 10.6M24 24L38.7 15.5M33.1 18.7L37.8 20.8M33.1 18.7L33.6 13.6M24 24L38.7 32.5M33.1 29.3L33.6 34.4M33.1 29.3L37.8 27.2M24 24L24 41M24 34.5L19.8 37.4M24 34.5L28.2 37.4M24 24L9.3 32.5M14.9 29.3L10.2 27.2M14.9 29.3L14.4 34.4M24 24L9.3 15.5M14.9 18.7L14.4 13.6M14.9 18.7L10.2 20.8'/%3E%3C/g%3E%3C/svg%3E" />
+
+<!-- System fonts only. The only third-party call is Cloudflare Web Analytics (privacy-first, cookieless). -->
+
+
+<style>
+  /* ════ NEWPORT — ink navy structure, cream paper, brass detail.
+     Genre: prestige counsel. Statements, not features. Whitespace is the decoration. ════ */
+  :root{
+    --ink:#16243f; --ink2:#0f1a30; --cream:#f4efe4; --paper:#faf7ef; --panel:#fcfaf4;
+    --soft:#6b6450; --faint:#97917f; --brass:#9a7b3c; --line:#e4dcc9; --line2:rgba(22,36,63,.10);
+    --maxw:1240px;
+    --head:"Helvetica Neue",Helvetica,Arial,sans-serif;
+    --mono:"SF Mono",ui-monospace,Menlo,Consolas,monospace;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{scroll-behavior:smooth}
+  @media (prefers-reduced-motion: reduce){
+    html{scroll-behavior:auto}
+    *,*::before,*::after{animation-duration:.01ms!important;transition-duration:.01ms!important}
+    .rv{opacity:1!important;transform:none!important}
+  }
+  body{background:var(--cream);color:var(--ink);font-family:-apple-system,"Helvetica Neue",Helvetica,Arial,sans-serif;line-height:1.65;-webkit-font-smoothing:antialiased}
+  a{color:inherit;text-decoration:none}
+  .wrap{max-width:var(--maxw);margin:0 auto;padding:0 28px}
+  ::selection{background:#dce3ee}
+
+  .rv{opacity:0;transform:translateY(22px);transition:opacity .8s cubic-bezier(.2,.7,.2,1),transform .8s cubic-bezier(.2,.7,.2,1)}
+  .rv.in{opacity:1;transform:none}
+
+  .eyebrow{font-family:var(--mono);font-size:11.5px;letter-spacing:2.6px;text-transform:uppercase;color:var(--brass);margin-bottom:26px}
+  h1,h2{font-family:var(--head);font-weight:700;letter-spacing:-.5px;line-height:1.05}
+  h2{font-size:clamp(30px,4.6vw,50px);max-width:820px}
+  .lead{font-size:18.5px;color:var(--soft);max-width:640px;margin-top:22px;line-height:1.6}
+
+  /* ── nav ── */
+  nav{position:fixed;top:0;left:0;right:0;z-index:60;background:var(--ink);border-bottom:1px solid var(--ink2)}
+  nav .wrap{display:flex;align-items:center;justify-content:space-between;height:48px;max-width:none;padding:0 28px}
+  .brand{font-weight:500;font-size:15.5px;letter-spacing:4.5px;color:var(--cream)}
+  .navlinks{display:flex;gap:26px;align-items:center;font-size:13px;color:#a9b6cc;font-weight:500}
+  .navlinks a:hover{color:var(--cream)}
+  .navcta{border:1px solid rgba(244,239,228,.35);border-radius:999px;padding:5px 14px;color:var(--cream)!important}
+  .navcta:hover{border-color:var(--cream)}
+  @media(max-width:700px){.navlinks a:not(.navcta){display:none}}
+
+  /* ── hero: full-bleed dusk — the statement on the glass ── */
+  .hero{padding:180px 0 120px;position:relative;overflow:hidden;background:var(--ink)}
+  .heroimg{position:absolute;inset:0;pointer-events:none;opacity:.72;
+    background:url('hero.jpg') center/cover no-repeat}
+  .heroimg::after{content:"";position:absolute;inset:0;
+    background:linear-gradient(95deg, rgba(13,19,35,.92) 0%, rgba(13,19,35,.66) 42%, rgba(13,19,35,.18) 75%, rgba(13,19,35,.05) 100%)}
+  .hero .wrap{position:relative;z-index:2}
+  .hero h1{font-size:clamp(44px,8vw,86px);max-width:900px;color:var(--cream)}
+  .hero .lead{font-size:20px;max-width:600px;margin-top:28px;color:#c3cbd9}
+  .ctas{display:flex;gap:18px;margin-top:42px;flex-wrap:wrap;align-items:center}
+  .btn{display:inline-flex;align-items:center;gap:9px;border-radius:9px;padding:14px 24px;font-size:15.5px;font-weight:600;transition:.18s}
+  .btn.primary{background:var(--cream);color:var(--ink)}
+  .btn.primary:hover{background:#fff}
+  .btn.quiet{color:var(--cream);border-bottom:1.5px solid var(--brass);border-radius:0;padding:4px 2px}
+  .hero .note{margin-top:30px;font-size:13px;color:#8e9ab1;font-family:var(--mono)}
+
+  /* ── numbers strip: figures as gravitas, properties not boasts ── */
+  .figures{border-top:1px solid var(--line);border-bottom:1px solid var(--line);background:var(--paper)}
+  .figures .wrap{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:0}
+  .fig{padding:38px 26px;border-right:1px solid var(--line)}
+  .fig:last-child{border-right:none}
+  .fig .fnum{font-family:var(--head);font-weight:700;font-size:34px;letter-spacing:-.5px;line-height:1}
+  .fig .flab{font-size:13px;color:var(--soft);margin-top:8px;line-height:1.5}
+  @media(max-width:700px){.fig{border-right:none;border-bottom:1px solid var(--line)}}
+
+  /* ── navy band: won't vs can't — the only key, in the dark ── */
+  .band{background:var(--ink);color:var(--cream);padding:110px 0;position:relative;overflow:hidden}
+  .bandimg{position:absolute;top:0;right:0;bottom:0;width:46%;pointer-events:none;
+    background:url('band.png') center/cover no-repeat;
+    -webkit-mask-image:linear-gradient(100deg, transparent 18%, #000 55%);
+    mask-image:linear-gradient(100deg, transparent 18%, #000 55%);
+    opacity:.85}
+  .band .wrap{position:relative;z-index:2}
+  @media(max-width:1000px){.bandimg{display:none}}
+  .band h2{color:var(--cream)}
+  .band .lead{color:#a9b6cc}
+  .band .cantline{margin-top:46px;font-family:var(--head);font-weight:700;font-size:clamp(22px,3vw,32px);letter-spacing:-.3px;max-width:760px;line-height:1.25}
+  .band .cantline em{font-style:normal;color:var(--brass)}
+  .band .cantline em.u{border-bottom:3px solid var(--brass);padding-bottom:1px}
+
+  /* ── pillars ── */
+  .sect{padding:110px 0}
+  .pillars{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:1px;background:var(--line);border:1px solid var(--line);margin-top:54px}
+  .pillar{background:var(--panel);padding:34px 30px}
+  .pillar .pnum{font-family:var(--mono);font-size:12px;color:var(--brass);letter-spacing:2px;margin-bottom:16px}
+  .pillar h3{font-family:var(--head);font-weight:700;font-size:19px;margin-bottom:10px;letter-spacing:-.2px}
+  .pillar p{font-size:15px;color:var(--soft);line-height:1.6}
+
+  /* ── the app ── */
+  .appshot{margin-top:56px;border:1px solid var(--line);border-radius:14px;overflow:hidden;box-shadow:0 30px 80px rgba(22,36,63,.14)}
+  .appshot img{display:block;width:100%}
+  .caption{margin-top:18px;font-size:13.5px;color:var(--faint);text-align:center;font-family:var(--mono)}
+
+  /* ── agents ── */
+  .salmon{font-family:var(--head);font-weight:700;font-size:clamp(26px,4vw,44px);letter-spacing:-.4px;line-height:1.15;max-width:840px}
+  .salmon .dim{color:var(--faint)}
+  .agentsteps{margin-top:50px;display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:26px}
+  .astep .mono{font-family:var(--mono);font-size:12px;color:var(--brass);letter-spacing:1.5px;margin-bottom:10px;text-transform:uppercase}
+  .astep p{font-size:15px;color:var(--soft)}
+  .astep .denied{color:#a23b2e;font-weight:600}
+
+  /* ── compare ── */
+  .ctable{width:100%;border-collapse:collapse;margin-top:54px}
+  .ctable th,.ctable td{padding:17px 14px;border-bottom:1px solid var(--line);font-size:14.5px;text-align:center}
+  .ctable td:first-child,.ctable th:first-child{text-align:left;padding-left:0;color:var(--soft);max-width:420px}
+  .ctable thead th{font-family:var(--mono);font-size:11.5px;letter-spacing:1.5px;text-transform:uppercase;color:var(--faint);border-bottom:2px solid var(--ink)}
+  .ctable .elcol{background:rgba(154,123,60,.07)}
+  .ctable thead th.elcol{color:var(--ink)}
+  .ctable .yes{color:var(--brass);font-weight:700;font-size:16px}
+  .ctable .oyes{color:#8a93a5;font-size:15px}
+  .ctable .no{color:#c5cbd6;font-size:15px}
+  .ctable .elno{color:#a23b2e;font-weight:700;font-size:16px}
+  .cfoot{margin-top:22px;font-size:13px;color:var(--faint);font-family:var(--mono);line-height:1.7}
+  .ast{color:var(--brass);font-weight:700}
+  @media(max-width:700px){.ctable th,.ctable td{padding:13px 8px;font-size:13px}.ctable thead th{font-size:10px;letter-spacing:1px}}
+
+  /* ── honesty ── */
+  .honesty{border-top:1px solid var(--line);border-bottom:1px solid var(--line);background:var(--paper)}
+  .honesty .hgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:40px;margin-top:46px}
+  .honesty h4{font-family:var(--head);font-weight:700;font-size:16.5px;margin-bottom:8px}
+  .honesty p{font-size:14.5px;color:var(--soft)}
+
+  /* ── footer ── */
+  footer{background:var(--ink);color:#a9b6cc;padding:70px 0 50px;font-size:14px}
+  footer .frow{display:flex;justify-content:space-between;gap:30px;flex-wrap:wrap;align-items:flex-start}
+  footer .brand{font-size:16px}
+  footer .fnote{max-width:420px;line-height:1.7;margin-top:14px;font-size:13px}
+  footer .flinks{display:flex;flex-direction:column;gap:9px;font-size:13.5px}
+  footer .flinks a:hover{color:var(--cream)}
+  footer .railsline{margin-top:50px;font-size:14.5px;color:#a9b6cc}
+  footer .credits{margin-top:16px;padding-top:18px;border-top:1px solid rgba(244,239,228,.12);font-family:var(--mono);font-size:12px;color:#7e89a0;display:flex;flex-wrap:wrap;gap:14px;align-items:baseline}
+  footer .credits .clabel{letter-spacing:2px;text-transform:uppercase;font-size:10.5px}
+  footer .credits a{color:#a9b6cc;border-bottom:1px solid rgba(169,182,204,.35)}
+  footer .credits a:hover{color:var(--cream);border-bottom-color:var(--brass)}
+  footer .credits .cdim{color:#5d6880}
+  footer .legal{margin-top:20px;font-size:12px;color:#7e89a0;display:flex;justify-content:space-between;flex-wrap:wrap;gap:10px}
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="wrap">
+    <a class="brand" href="#top">ELUR</a>
+    <div class="navlinks">
+      <a href="#how">How it works</a>
+      <a href="#agents">For the agent era</a>
+      <a href="#honesty">What we can't do</a>
+      <a class="navcta" href="mailto:hello@elur.io?subject=Elur%20early%20access">Request access</a>
+    </div>
+  </div>
+</nav>
+
+<!-- ════ HERO — one statement, prestige-firm austerity ════ -->
+<header class="hero" id="top">
+  <div class="heroimg" aria-hidden="true"></div>
+  <div class="wrap">
+    <div class="eyebrow rv">Governed access · For people and AI agents · The custodian is you</div>
+    <h1 class="rv">You shared it.<br/>You still own it.</h1>
+    <p class="lead rv">Elur gives documents a property they never had: access that can be taken back. Encrypted on your device. Governed on a public ledger. Revocable from anywhere — for people, and for AI agents.</p>
+    <div class="ctas rv">
+      <a class="btn primary" href="mailto:hello@elur.io?subject=Elur%20early%20access">Request early access</a>
+      <a class="btn quiet" href="#how">See how it works</a>
+    </div>
+    <p class="note rv">macOS · testnet preview · iOS and Windows to follow</p>
+  </div>
+</header>
+
+<!-- ════ FIGURES — properties, not boasts ════ -->
+<section class="figures">
+  <div class="wrap rv">
+    <div class="fig"><div class="fnum">0</div><div class="flab">servers of ours holding your files — your sealed files live where you put them. No vault to breach, nothing to change hands with the company.</div></div>
+    <div class="fig"><div class="fnum">100%</div><div class="flab">of access events recorded on a public ledger neither party can edit.</div></div>
+    <div class="fig"><div class="fnum">1</div><div class="flab">act to revoke — every reader, every agent, everywhere.</div></div>
+    <div class="fig"><div class="fnum">∞</div><div class="flab">your archive's lifetime. Documented format, your key, no dependency on Elur existing.</div></div>
+  </div>
+</section>
+
+<!-- ════ WON'T vs CAN'T — the navy band ════ -->
+<section class="band">
+  <div class="bandimg" aria-hidden="true"></div>
+  <div class="wrap">
+    <div class="eyebrow rv">The difference</div>
+    <h2 class="rv">Every provider promises they won't read your files. Promises have exceptions.</h2>
+    <p class="lead rv">Data rooms hold your documents and ask you to trust their policy. Their AI indexes what you store. Their servers cache what your counterparties view. Their directories remember every deal you ever ran. Their contracts call your data "entrusted" — because it is. To them.</p>
+    <p class="cantline rv">Elur <em>can't</em> read your files. Not won't — <em class="u">can't</em>. There is no server in the middle. There is no middle.</p>
+  </div>
+</section>
+
+<!-- ════ HOW IT WORKS — three pillars ════ -->
+<section class="sect" id="how">
+  <div class="wrap">
+    <div class="eyebrow rv">How it works</div>
+    <h2 class="rv">Sharing becomes a lease, not a gift.</h2>
+    <div class="pillars rv">
+      <div class="pillar">
+        <div class="pnum">01 · SEALED</div>
+        <h3>Encrypted on your device</h3>
+        <p>Files are sealed with AES-256 before anything leaves your machine. Store the sealed copy anywhere — your drives, your servers, decentralized storage. Elur never holds it.</p>
+      </div>
+      <div class="pillar">
+        <div class="pnum">02 · GOVERNED</div>
+        <h3>Enforced on a public ledger</h3>
+        <p>The only key sits behind a policy on rails neither party controls. Every open is checked against your rules — expiry, open limits, named identities, view-only — and recorded where no one can edit it. Not even us.</p>
+      </div>
+      <div class="pillar">
+        <div class="pnum">03 · REVOCABLE</div>
+        <h3>Taken back from anywhere</h3>
+        <p>Revoke once and every future open dies — on their machine, in their AI, across the world. Reinstate just as easily: sealed, never lost. No requests, no phone calls, no permission needed.</p>
+      </div>
+    </div>
+
+    <!-- Drop the fullscreen Newport screenshot into landing/ as app.png -->
+    <figure class="appshot rv"><img src="app.png" alt="The Elur application: an ink-navy rail with rooms — Open, Encrypt, Agent access, People, Activity — beside a cream document workspace." loading="lazy" onerror="this.closest('figure').style.display='none';document.querySelector('.caption').style.display='none'"/></figure>
+    <p class="caption rv">Every room of the data room — except the one where they keep your files.</p>
+  </div>
+</section>
+
+<!-- ════ THE AGENT ERA ════ -->
+<section class="sect" id="agents" style="padding-top:40px">
+  <div class="wrap">
+    <div class="eyebrow rv">For the agent era</div>
+    <p class="salmon rv">Everyone is teaching AI agents to remember. <span class="dim">We taught them to forget.</span></p>
+    <p class="lead rv">Their agents already read everything you send — every term sheet, every contract, forever, with no record and no way back. Elur makes agent knowledge a lease: any agent connects through an open standard, opens documents through your gate, and loses everything the moment you say so.</p>
+    <div class="agentsteps rv">
+      <div class="astep"><div class="mono">Grant</div><p>Give a counterparty's agent a badge — one act, no files sent, no account needed on their side.</p></div>
+      <div class="astep"><div class="mono">Watch</div><p>Every open it makes is signed on the ledger. You know what it read, and when — provably.</p></div>
+      <div class="astep"><div class="mono">Revoke</div><p>Kill the badge and every door closes at once. Its next request: <span class="denied">ACCESS DENIED.</span></p></div>
+    </div>
+  </div>
+</section>
+
+<!-- ════ COMPARE — seven rows, one honest ✗ ════ -->
+<section class="sect" id="compare" style="padding-top:30px">
+  <div class="wrap">
+    <div class="eyebrow rv">Side by side</div>
+    <h2 class="rv">How we compare.</h2>
+    <table class="ctable rv">
+      <thead>
+        <tr>
+          <th></th>
+          <th class="elcol">Elur</th>
+          <th>Legacy data rooms</th>
+          <th>Encrypted cloud storage</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td>Encrypted on your device, before anything leaves it</td><td class="elcol"><span class="yes">✓</span></td><td><span class="no">✗</span></td><td><span class="oyes">✓</span></td></tr>
+        <tr><td>The provider cannot read your files — can't, not won't</td><td class="elcol"><span class="yes">✓</span></td><td><span class="no">✗</span></td><td><span class="oyes">✓</span></td></tr>
+        <tr><td>Audit trail and per-document permissions</td><td class="elcol"><span class="yes">✓</span></td><td><span class="oyes">✓</span></td><td><span class="oyes">✓</span></td></tr>
+        <tr><td>Recipients open documents with no account and no vendor</td><td class="elcol"><span class="yes">✓</span></td><td><span class="no">✗</span></td><td><span class="no">✗</span></td></tr>
+        <tr><td>An access ledger neither party — nor the provider — can edit</td><td class="elcol"><span class="yes">✓</span></td><td><span class="no">✗</span></td><td><span class="no">✗</span></td></tr>
+        <tr><td>AI agents as named identities you can revoke from anywhere</td><td class="elcol"><span class="yes">✓</span></td><td><span class="no">✗</span></td><td><span class="no">✗</span></td></tr>
+        <tr><td>Can recover your documents if you lose your keys</td><td class="elcol"><span class="elno">✗</span><span class="ast">*</span></td><td><span class="oyes">✓</span></td><td><span class="oyes">✓</span></td></tr>
+      </tbody>
+    </table>
+    <p class="cfoot rv">Short on purpose. The last row is the price of the second — a provider that can't read your files is a provider that can't recover them.<br/><span class="ast">*</span>You can. Your recovery phrase restores everything, on any machine — it just never passes through us.</p>
+  </div>
+</section>
+
+<!-- ════ HONESTY — what we can't do ════ -->
+<section class="sect honesty" id="honesty">
+  <div class="wrap">
+    <div class="eyebrow rv">What we can't do</div>
+    <h2 class="rv">A security product should tell you its limits before you find them.</h2>
+    <div class="hgrid rv">
+      <div>
+        <h4>We can't erase what was already read.</h4>
+        <p>Revocation kills every future open, everywhere. It cannot reach a memory, a photograph of a screen, or a copy made while access was live. What it changes is the default: keeping your data stops being automatic and becomes a deliberate, recorded act.</p>
+      </div>
+      <div>
+        <h4>We can't see your deals — or sell them.</h4>
+        <p>There is no Elur database of your documents, your counterparties, or your readers. Names you give identities live on your device alone; the ledger holds pseudonyms. Nothing to breach, nothing to sell.</p>
+      </div>
+      <div>
+        <h4>We can't lock you in — or lock you out.</h4>
+        <p>Your vault opens with your key, offline, forever — and the format is documented, so your archive outlives us. If you stop paying, you lose our conveniences, never your property. Billing that can't take hostages.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ════ FOOTER ════ -->
+<footer>
+  <div class="wrap">
+    <div class="frow">
+      <div>
+        <div class="brand">ELUR</div>
+        <p class="fnote">Governed, revocable access for documents — for people and AI agents.</p>
+      </div>
+      <div class="flinks">
+        <a href="#how">How it works</a>
+        <a href="#agents">For the agent era</a>
+        <a href="#honesty">What we can't do</a>
+        <a href="mailto:hello@elur.io?subject=Elur%20early%20access">Request access</a>
+      </div>
+    </div>
+    <p class="railsline">The gate lives on public rails that belong to nobody. Including us.</p>
+    <div class="credits">
+      <span class="clabel">Built on</span>
+      <a href="https://sui.io" target="_blank" rel="noopener">Sui</a>
+      <a href="https://www.walrus.xyz" target="_blank" rel="noopener">Walrus</a>
+      <a href="https://seal.mystenlabs.com" target="_blank" rel="noopener">Seal</a>
+      <a href="https://docs.enoki.mystenlabs.com" target="_blank" rel="noopener">Enoki</a>
+      <span class="cdim">— public rails by</span>
+      <a href="https://www.mystenlabs.com" target="_blank" rel="noopener">Mysten Labs</a>
+    </div>
+    <div class="legal">
+      <span>© 2026 Elur. Testnet preview — not yet for production secrets.</span>
+      <span><a href="terms.html">Terms</a> · <a href="privacy.html">Privacy</a></span>
+      <span>Built with intent</span>
+    </div>
+  </div>
+</footer>
+
+<script>
+  const io = new IntersectionObserver((es) => es.forEach(e => { if (e.isIntersecting) { e.target.classList.add("in"); io.unobserve(e.target); } }), { threshold: .12 });
+  document.querySelectorAll(".rv").forEach(el => io.observe(el));
+</script>
+<!-- Cloudflare Web Analytics — privacy-first, cookieless. Token: Cloudflare dashboard → Analytics & Logs → Web Analytics. -->
+<script defer src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon='{"token": "REPLACE_WITH_CF_WEB_ANALYTICS_TOKEN"}'></script>
+</body>
+</html>

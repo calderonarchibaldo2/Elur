@@ -2,5 +2,22 @@ node_modules/
 target/
 dist/
 build/
-.env
 .DS_Store
+
+# secrets / keys — NEVER publish (backstop; these are also excluded from the sync)
+.env
+*.env
+!*.env.example
+*-key.json
+.agent-key.json
+counterparty-key.json
+*-secret.txt
+*.txt.yale
+*.owner.json
+*.pem
+id_ed25519*
+id_rsa*
+
+# editor / OS junk
+.fuse_hidden*
+*.swp

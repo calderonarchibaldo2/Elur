@@ -4,6 +4,8 @@
   "type": "module",
   "description": "Elur — governed, revocable memory for AI agents, on Walrus + Seal (Sui Overflow 2026, Walrus track).",
   "scripts": {
+    "setup": "node setup.mjs",
+    "start": "node mcp-server.mjs",
     "step1": "node test-step1-walrus-crypto.mjs",
     "step2": "node test-step2-governed.mjs"
   },

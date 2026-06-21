@@ -36,13 +36,18 @@ const PACKAGE_ID = "0x5bbbc73ce94e4cfd0f53bf6749e29203c88fd2d33fe4316a34027c9760
 // Only the relayer's record_open is routed here so the guard is live, with no
 // change to the app's mint/revoke/Seal paths.
 const RECORD_PKG = "0xe69d8597d9cdec396acd3c8f76f7a4e5eb1de52d07ec2344289b279ee995bb3b";
-const ALLOWED_TARGETS = [
-  `${PACKAGE_ID}::access::mint`,
-  `${PACKAGE_ID}::access::revoke`,
-  `${PACKAGE_ID}::access::record_open`,
-  `${PACKAGE_ID}::access::add_recipient`,
-  `${RECORD_PKG}::access::record_open`,
-];
+// Both package versions allowlisted during the v1→v2 rewire (2026-06-10): the app
+// now targets v2 (RECORD_PKG) for all calls; v1 stays allowed as rollback + for
+// older builds. Same module, same contract authority — no new sponsor surface.
+const ALLOWED_TARGETS = [PACKAGE_ID, RECORD_PKG].flatMap((p) => [
+  `${p}::access::mint`,
+  `${p}::access::revoke`,
+  `${p}::access::reinstate`,
+  `${p}::access::record_open`,
+  `${p}::access::add_recipient`,
+  `${p}::access::remove_recipient`,
+  `${p}::access::update_scope`,
+]);
 const MODULE = "access";
 
 // Relayer: records opens on-chain for ANONYMOUS recipients (who have no wallet

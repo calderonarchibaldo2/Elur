@@ -1,0 +1,48 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Elur — Overview (deal control + on-the-clock)</title>
+<link rel="stylesheet" href="../src/style.css">
+<style>body{padding-left:208px} .previewnote{position:fixed;right:14px;bottom:12px;font:11px/1.4 var(--mono,monospace);color:var(--muted);background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:6px 10px;z-index:99}</style>
+</head><body>
+<div class="topbar"><div class="logo"><span>ELUR</span></div>
+<div class="tabs">
+      <div class="tab on" id="tabOverview"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="7" height="7" rx="1.5"/><rect x="13" y="4" width="7" height="7" rx="1.5"/><rect x="4" y="13" width="7" height="7" rx="1.5"/><rect x="13" y="13" width="7" height="7" rx="1.5"/></svg>Overview</div>
+      <div class="tab" id="tabOpen"><svg viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 018 0"/></svg>Open</div>
+      <div class="tab" id="tabShare"><svg viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 018 0v3"/><circle cx="12" cy="15.5" r="1.3"/></svg>Encrypt</div>
+      <div class="tab" id="tabAgent"><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.2"/><path d="M3.5 19c.6-3.2 2.8-5 5.5-5s4.9 1.8 5.5 5"/><circle cx="17" cy="9" r="2.4"/><path d="M15.5 14.3c2.3.2 4 1.7 4.7 4.2"/></svg>Access control</div>
+      <div class="tab" id="tabRequests"><svg viewBox="0 0 24 24"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4.5V3h6v1.5M8.5 10l1.5 1.5L13 8.5M8.5 15.5l1.5 1.5 3-3"/></svg>Requests</div>
+      <div class="tab" id="tabRoom"><svg viewBox="0 0 24 24"><path d="M4 5a1 1 0 011-1h4l2 2h8a1 1 0 011 1v3H4z"/><path d="M4 9h17v9a1 1 0 01-1 1H5a1 1 0 01-1-1z"/></svg>Documents</div>
+      <div class="tab preview" id="tabQA"><svg viewBox="0 0 24 24"><path d="M21 12a8 8 0 01-8 8H4l2.5-3A8 8 0 1121 12z"/><path d="M9 11h6M9 14h4"/></svg>Q&amp;A<span class="soonpill prev">PREVIEW</span></div>
+      <div class="tab" id="tabActivity"><svg viewBox="0 0 24 24"><path d="M3 12h4l3-8 4 16 3-8h4"/></svg>Activity</div>
+    </div>
+    </div><span class="spacer"></span><div class="side-pills"><span class="pill">Sui testnet</span></div></div>
+<div class="wrap">
+<!-- OVERVIEW (working dashboard — reads live state + the ledger) -->
+    <div id="paneOverview">
+      <div class="roomhead">
+        <div class="lab">Your deals, at a glance</div>
+        <h1>Overview</h1>
+        <p class="sub">Every deal you govern, summed from your own records and the public ledger — documents live and sealed, who can open them, opens this week, and what expires next. Nothing here is stored by us; it's read fresh each time you open this room.</p>
+      </div>
+      <div id="ovBody"><p class="muted small">Reading your deals…</p></div>
+    </div>
+</div>
+<div class="previewnote">layout preview · sample data · live version reads the chain + your requests</div>
+<script>
+const tile=(n,label,sub,tab)=>`<button class="ovtile" data-tab="${tab}"><div class="ovn">${n}</div><div class="ovlab">${label}</div>${sub?`<div class="ovsub">${sub}</div>`:""}</button>`;
+let h=`<div class="ovstatus"><div class="ovdeal">Project Páramo</div><div class="ovstats"><span class="ovstat"><b>4</b> live</span><span class="ovstat"><b>4</b> counterparties</span><span class="ovstat"><b>7</b> opens this week</span><span class="ovstat muted"><b>1</b> sealed</span></div><button class="mini">Open room →</button></div>`;
+// On the clock
+h+=`<div class="ovsec"><div class="ovsech">On the clock <span class="ovhint">deadlines & expiries, both directions</span></div>`;
+h+=`<div class="ovgroup">Due from counterparties</div>`;
+h+=[["Signed NDA (counter-executed)","from Camila Duarte · due in 2 days","View",false],["Proof of funds letter","from Crosby Whitfield · overdue","View",true]].map(([n,m,a,o])=>`<div class="ovrow"><span class="ovwarn ${o?'urg':''}">●</span><div class="ovrowmain"><div class="nm">${n}</div><div class="ovmeta">${m}</div></div><button class="mini">${a}</button></div>`).join("");
+h+=`<div class="ovgroup">Due to counterparties</div>`;
+h+=[["Cap table (fully diluted)","Camila Duarte waiting · due in 1 day · 7d review","Fulfill",false],["Audited 2024 financials","Nikos Andreou waiting · due in 3 days · 14d review","Fulfill",false]].map(([n,m,a,o])=>`<div class="ovrow"><span class="ovwarn ${o?'urg':''}">●</span><div class="ovrowmain"><div class="nm">${n}</div><div class="ovmeta">${m}</div></div><button class="mini">${a}</button></div>`).join("");
+h+=`<div class="ovgroup">Access expiring</div>`;
+h+=[["Term Sheet (DRAFT)","1 party can open · loses access in 9h",true]].map(([n,m,o])=>`<div class="ovrow"><span class="ovwarn ${o?'urg':''}">●</span><div class="ovrowmain"><div class="nm">${n}</div><div class="ovmeta">${m}</div></div><button class="mini danger">Revoke now</button></div>`).join("");
+h+=`</div>`;
+// counterparty activity
+h+=`<div class="ovsec"><div class="ovsech">Counterparty activity <span class="ovhint">most active first</span></div>`;
+h+=[["Camila Duarte","buyer's counsel","4 opens this week · last 4:15 PM","can open 4 of 5"],["Aegis Audit","financial DD","2 opens this week · last Jun 12","can open 3 of 5"],["Margaux Lefèvre","sell-side advisor","1 open this week · last Jun 11","can open 5 of 5"],["Crosby Whitfield","buyer corp dev",'<span class="ovcold">not opened yet</span>',"can open 2 of 5"]].map(([n,r,e,c],i)=>`<div class="person"><div class="pavatar" style="background:${i%2?'var(--brass)':'var(--ink)'}">${n[0]}</div><div class="pinfo"><div class="ovcpname">${n} <span class="ovrole">${r}</span></div><div class="paddr">${e} · ${c}</div></div><button class="mini danger">Revoke access</button></div>`).join("")+`</div>`;
+h+=`<div class="ovsec"><div class="ovsech">Recent opens</div>`+[["Camila Duarte opened “Term Sheet (DRAFT)”","4:15 PM"],["Aegis Audit opened “Due Diligence Summary”","2:02 PM"]].map(([t,m])=>`<div class="ovrow"><span class="ovdotopen">●</span><div class="ovrowmain"><div class="nm">${t}</div><div class="ovmeta">${m}</div></div></div>`).join("")+`</div>`;
+h+=`<p class="muted small" style="margin-top:14px">Read live from your documents and ledger activity — no charts, no stored analytics. (Silent screen captures can't be detected by any software — view-only files are watermarked so a leaked copy traces back to whoever opened it.)</p>`;
+document.getElementById("ovBody").innerHTML=h;
+</script>
+</body></html>

@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Elur — live deal room</title>
+<style>
+  :root{ --ink:#16243f; --ink2:#0f1a30; --paper:#fcf9f1; --cream:#f4efe4; --brass:#9a7b3c;
+         --muted:#6b6450; --faint:#97917f; --line:#e4dcc9; --ok:#1f5440; --bad:#a23b2e; }
+  *{box-sizing:border-box} html,body{margin:0}
+  body{ background:var(--paper); color:var(--ink); font:16px/1.55 "Helvetica Neue",Helvetica,Arial,sans-serif; -webkit-font-smoothing:antialiased; }
+  .wrap{ max-width:860px; margin:0 auto; padding:48px 28px 100px; }
+  .kick{ font:600 12px/1 "JetBrains Mono",ui-monospace,monospace; letter-spacing:2.5px; text-transform:uppercase; color:var(--brass); }
+  h1{ font-size:40px; letter-spacing:-.5px; margin:12px 0 8px; }
+  .sub{ color:var(--muted); font-size:16.5px; max-width:62ch; margin:0 0 6px; }
+  .how{ color:var(--faint); font-size:13.5px; margin:14px 0 0; }
+  .tabs{ display:flex; gap:8px; margin:22px 0 24px; }
+  .tab{ border:1px solid var(--line); background:#fff; border-radius:9px; padding:9px 16px; font:600 14px inherit; color:var(--muted); cursor:pointer; }
+  .tab.on{ background:var(--ink); color:var(--cream); border-color:var(--ink); }
+  .folder{ font:600 11px/1 "JetBrains Mono",ui-monospace,monospace; letter-spacing:1.6px; text-transform:uppercase; color:var(--brass); margin:26px 0 10px; }
+  .doc{ display:flex; align-items:center; gap:14px; background:#fff; border:1px solid var(--line); border-radius:12px; padding:14px 16px; box-shadow:0 10px 30px rgba(22,36,63,.06); }
+  .dinfo{ flex:1; min-width:0; } .dname{ font-weight:600; font-size:16px; }
+  .dnote{ font:11.5px "JetBrains Mono",ui-monospace,monospace; color:var(--brass); margin-top:2px; }
+  .open,.gbtn{ border:1px solid var(--ink); background:var(--ink); color:var(--cream); border-radius:9px; padding:9px 18px; font:600 14px inherit; cursor:pointer; }
+  .open:hover,.gbtn:hover{ background:var(--ink2); } .open:disabled,.gbtn:disabled{ opacity:.5; cursor:default; }
+  .gbtn.ghost{ background:#fff; color:var(--ink); } .gbtn.danger{ background:var(--bad); border-color:var(--bad); }
+  .out:not(:empty){ margin:8px 0 4px; }
+  .status{ font:13px "JetBrains Mono",ui-monospace,monospace; color:var(--muted); padding:8px 2px; }
+  .opened{ background:#fff; border:1px solid var(--line); border-left:3px solid var(--ok); border-radius:10px; padding:14px 16px; }
+  .okbadge{ font:600 11.5px "JetBrains Mono",ui-monospace,monospace; letter-spacing:.4px; color:var(--ok); margin-bottom:8px; }
+  .opened pre{ white-space:pre-wrap; word-break:break-word; margin:0; font:13.5px/1.5 "JetBrains Mono",ui-monospace,monospace; color:var(--ink); }
+  .opened img{ max-width:100%; border-radius:8px; } .opened iframe{ width:100%; height:420px; border:1px solid var(--line); border-radius:8px; }
+  .denied{ background:#f8ece8; border:1px solid #e7c4ba; border-left:3px solid var(--bad); border-radius:10px; padding:14px 16px; }
+  .nobadge{ font:600 12.5px "JetBrains Mono",ui-monospace,monospace; letter-spacing:.5px; color:var(--bad); }
+  .dmsg{ color:var(--ink); font-size:14px; margin:6px 0 4px; } .dscan a{ color:var(--brass); font-size:13px; }
+  .card{ background:#fff; border:1px solid var(--line); border-radius:12px; padding:18px; box-shadow:0 10px 30px rgba(22,36,63,.06); }
+  .who{ font:12.5px "JetBrains Mono",ui-monospace,monospace; color:var(--muted); margin-bottom:12px; }
+  .who b{ color:var(--ink); } .who .so{ color:var(--brass); cursor:pointer; margin-left:8px; }
+  .drop{ border:1.5px dashed var(--line); border-radius:11px; padding:22px; text-align:center; color:var(--muted); cursor:pointer; }
+  .drop:hover{ border-color:var(--brass); }
+  .row{ display:flex; gap:10px; align-items:center; margin-top:12px; flex-wrap:wrap; }
+  .foot{ margin-top:44px; color:var(--faint); font-size:13px; border-top:1px solid var(--line); padding-top:18px; }
+  .foot b{ color:var(--muted); }
+</style></head>
+<body>
+  <div class="wrap">
+    <div class="kick">Elur · live on Sui testnet</div>
+    <h1 id="deal">Deal room</h1>
+    <p class="sub" id="sub"></p>
+
+    <div class="tabs">
+      <button class="tab on" id="tabR">Open a shared room</button>
+      <button class="tab" id="tabS" style="display:none">Try it on your own document</button>
+    </div>
+
+    <div id="paneRecipient">
+      <p class="how">Each document opens by fetching the encrypted blob from Walrus, having Seal's key servers check the on-chain gate, and decrypting in your browser. Try the <b>Confidential Budget</b> — it's been revoked, and you'll watch the gate refuse it.</p>
+      <div id="grid"></div>
+      <div class="foot">No install, no account, nothing mocked. The ciphertext lives on <b>Walrus</b>, the key is released by <b>Seal</b> only if the policy on <b>Sui</b> permits it, and decryption happens on your device. Revoke a document and it re-seals everywhere — including here.</div>
+    </div>
+
+    <div id="paneSender" style="display:none">
+      <p class="how">Seal a document of <b>your own</b>, end to end, live on testnet. Sign in with Google (zkLogin) — no wallet, no crypto, gas is sponsored — then encrypt a file, open it through the gate, and revoke it to watch it deny.</p>
+      <div id="senderBody" style="margin-top:18px"></div>
+      <div class="foot">The real lifecycle on your own file: encrypted on your device, governed by a policy you mint on <b>Sui</b>, key sealed by <b>Seal</b>, opened only through the gate — and revocable. Gas sponsored via <b>Enoki</b>; you hold no SUI.</div>
+    </div>
+  </div>
+
+  <script type="module">
+    import { CONFIG } from "./config.js";
+    document.getElementById("deal").textContent = CONFIG.dealName;
+    document.getElementById("sub").textContent = CONFIG.subtitle;
+  </script>
+  <script type="module" src="./main.js"></script>
+</body></html>

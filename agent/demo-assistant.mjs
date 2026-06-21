@@ -22,7 +22,7 @@ reset(); // start each demo run with a clean memory
 
 L("\n① Teaching the agent two confidential facts (stored as governed memories on Walrus)…");
 await learn("budget", "Our maximum acquisition budget is $4.2M — strictly confidential.");
-await learn("counsel", "Our lead counsel is Maria Restrepo at Lex Andina.");
+await learn("counsel", "Our lead counsel is Camila Duarte at Lex Andina.");
 L("   ✓ both sealed to on-chain policies and stored on Walrus.\n");
 
 L("② Ask the agent — every memory is accessible:");

@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Privacy — Elur</title>
+<meta name="description" content="Elur's privacy policy. It's short, because we don't have your data."/>
+<style>
+  :root{--ink:#16243F;--cream:#F4EFE4;--paper:#FAF7EF;--brass:#9A7B3C;--soft:#4a5468;--faint:#8a93a5;--line:#E2DCCD;
+    --head:"Helvetica Neue",Helvetica,Arial,sans-serif;--mono:"SF Mono",ui-monospace,Menlo,monospace}
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{background:var(--cream);color:var(--ink);font-family:var(--head);font-size:16px;line-height:1.65;-webkit-font-smoothing:antialiased}
+  a{color:inherit;text-decoration:none}
+  nav{position:sticky;top:0;background:var(--ink);height:48px;display:flex;align-items:center;z-index:10}
+  nav .wrap{display:flex;justify-content:space-between;align-items:center}
+  nav a{color:var(--cream);font-size:13px}
+  nav .brand{font-weight:700;letter-spacing:4px}
+  .wrap{max-width:760px;margin:0 auto;padding:0 28px;width:100%}
+  main{padding:90px 0 120px}
+  .eyebrow{font-family:var(--mono);font-size:12px;letter-spacing:2.5px;text-transform:uppercase;color:var(--brass);margin-bottom:18px}
+  h1{font-weight:700;font-size:clamp(34px,5vw,52px);letter-spacing:-1px;line-height:1.08;margin-bottom:14px}
+  .sub{color:var(--soft);font-size:17px;margin-bottom:60px}
+  section{margin-bottom:44px}
+  h2{font-size:19px;font-weight:700;margin-bottom:10px;letter-spacing:-.2px}
+  h2 .n{font-family:var(--mono);font-size:12px;color:var(--brass);letter-spacing:2px;margin-right:10px}
+  p{color:var(--soft);font-size:15.5px;margin-bottom:10px}
+  .note{margin-top:70px;padding-top:24px;border-top:1px solid var(--line);font-family:var(--mono);font-size:12.5px;color:var(--faint);line-height:1.8}
+</style>
+</head>
+<body>
+<nav><div class="wrap"><a class="brand" href="index.html">ELUR</a><a href="index.html">← Back</a></div></nav>
+<main>
+<div class="wrap">
+  <div class="eyebrow">Privacy policy</div>
+  <h1>This is short, because we don't have your data.</h1>
+  <p class="sub">Most privacy policies describe what a company does with the information it holds about you. Ours mostly describes information we are unable to hold.</p>
+
+  <section>
+    <h2><span class="n">01</span>What we cannot collect</h2>
+    <p>Your documents are encrypted on your device before anything leaves it. Elur never receives, stores, or is able to read your files. There is no Elur server holding your documents, your document names, or your readers' real names. We cannot disclose, sell, leak, or be compelled to produce what we never possess.</p>
+  </section>
+
+  <section>
+    <h2><span class="n">02</span>What lives only on your device</h2>
+    <p>The names you assign to people and agents, your project organization, and your keys live in local storage on your machine. They never sync to us. If you delete them, they are gone; we have no copy.</p>
+  </section>
+
+  <section>
+    <h2><span class="n">03</span>What is public, permanently</h2>
+    <p>Grants, revocations, and document opens are recorded as pseudonymous addresses on a public ledger (the Sui network). This record is permanent and tamper-proof by design — neither you, your counterparty, nor Elur can edit or erase it. That permanence is the product, so consider before you act: the ledger does not forget. It contains no file contents and no real names, only addresses and timestamps.</p>
+  </section>
+
+  <section>
+    <h2><span class="n">04</span>What we do collect</h2>
+    <p>If you write to us, we have your email. If we sponsor your transactions, our server sees the transaction requests it signs — addresses and function calls, never file contents or filenames. That is the list.</p>
+  </section>
+
+  <section>
+    <h2><span class="n">05</span>This website</h2>
+    <p>This site uses no cookies, serves no ads, and does no cross-site tracking. To see how the site is used, we use Cloudflare Web Analytics — a privacy-first measurement that counts page views and visits in aggregate. It sets no cookies, stores nothing on your device, builds no profile of you, and never identifies you. Cloudflare also shows us anonymous, edge-measured traffic counts.</p>
+  </section>
+
+  <section>
+    <h2><span class="n">06</span>Contact</h2>
+    <p>Questions: use the request-access link on the <a href="index.html" style="color:var(--brass)">home page</a>.</p>
+  </section>
+
+  <p class="note">Plain-language draft, June 2026 — under legal review before commercial launch. Elur is a testnet preview; see the <a href="terms.html" style="color:var(--brass)">Terms of Service</a>.</p>
+</div>
+</main>
+<!-- Cloudflare Web Analytics — privacy-first, cookieless. Token: Cloudflare dashboard → Analytics & Logs → Web Analytics. -->
+<script defer src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon='{"token": "REPLACE_WITH_CF_WEB_ANALYTICS_TOKEN"}'></script>
+</body>
+</html>

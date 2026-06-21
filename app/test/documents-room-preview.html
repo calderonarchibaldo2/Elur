@@ -1,0 +1,133 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Elur — Documents (upload + folders + comments)</title>
+<link rel="stylesheet" href="../src/style.css">
+<style>body{padding-left:208px} .previewnote{position:fixed;right:14px;bottom:12px;font:11px/1.4 var(--mono,monospace);color:var(--muted);background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:6px 10px;z-index:99}</style>
+</head><body>
+<div class="topbar"><div class="logo"><span>ELUR</span></div>
+<div class="tabs">
+      <div class="tab" id="tabOverview"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="7" height="7" rx="1.5"/><rect x="13" y="4" width="7" height="7" rx="1.5"/><rect x="4" y="13" width="7" height="7" rx="1.5"/><rect x="13" y="13" width="7" height="7" rx="1.5"/></svg>Overview</div>
+      <div class="tab" id="tabOpen"><svg viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 018 0"/></svg>Open</div>
+      <div class="tab" id="tabShare"><svg viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 018 0v3"/><circle cx="12" cy="15.5" r="1.3"/></svg>Encrypt</div>
+      <div class="tab" id="tabAgent"><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.2"/><path d="M3.5 19c.6-3.2 2.8-5 5.5-5s4.9 1.8 5.5 5"/><circle cx="17" cy="9" r="2.4"/><path d="M15.5 14.3c2.3.2 4 1.7 4.7 4.2"/></svg>Access control</div>
+      <div class="tab" id="tabRequests"><svg viewBox="0 0 24 24"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4.5V3h6v1.5M8.5 10l1.5 1.5L13 8.5M8.5 15.5l1.5 1.5 3-3"/></svg>Requests</div>
+      <div class="tab on" id="tabRoom"><svg viewBox="0 0 24 24"><path d="M4 5a1 1 0 011-1h4l2 2h8a1 1 0 011 1v3H4z"/><path d="M4 9h17v9a1 1 0 01-1 1H5a1 1 0 01-1-1z"/></svg>Documents</div>
+      <div class="tab preview" id="tabQA"><svg viewBox="0 0 24 24"><path d="M21 12a8 8 0 01-8 8H4l2.5-3A8 8 0 1121 12z"/><path d="M9 11h6M9 14h4"/></svg>Q&amp;A<span class="soonpill prev">PREVIEW</span></div>
+      <div class="tab" id="tabActivity"><svg viewBox="0 0 24 24"><path d="M3 12h4l3-8 4 16 3-8h4"/></svg>Activity</div>
+    </div>
+    </div><span class="spacer"></span><div class="side-pills"><span class="pill">Sui testnet</span></div></div>
+<div class="wrap">
+<!-- DEAL ROOM (recipient browses a governed room — hosted by no one) -->
+    <div id="paneRoom">
+      <div class="roomhead">
+        <div class="lab">Documents · governed by the ledger</div>
+        <h1>Documents</h1>
+        <p class="sub">Browse the deal by folder and open exactly what's been shared with you. Locked documents still show — so you know what exists — and you can request access in a click. Comment on any open document, scoped to the people who can see it.</p>
+      </div>
+      <div class="card pad">
+        <div class="roomtools">
+          <button class="btn primary" id="roomAddFiles">Add documents…</button>
+          <button class="btn ghost" id="roomAddFolder">Add a folder…</button>
+          <label class="muted small" style="display:flex;align-items:center;gap:6px">store
+            <select id="roomStore" class="inp" style="font-size:13px;padding:6px 8px;width:auto">
+              <option value="walrus">on Walrus (always available)</option>
+              <option value="local">as a sealed file (you send it)</option>
+            </select>
+          </label>
+          <span class="rtsp"></span>
+          <button class="btn ghost" id="roomLoad">Open a shared room…</button>
+          <label class="muted small" style="display:flex;align-items:center;gap:6px">view as
+            <select id="roomViewAs" class="inp" style="font-size:13px;padding:6px 8px;min-width:140px"></select>
+          </label>
+        </div>
+        <div class="muted small" id="roomMeta" style="margin-bottom:12px"></div>
+        <div id="roomList"><p class="muted small">No documents loaded. Click “Open a shared room…” and choose a manifest a sender exported for you.</p></div>
+        <div class="status" id="roomStatus"></div>
+        <div id="roomDoc"></div>
+      </div>
+    </div>
+
+    <!-- REQUESTS (two-way document negotiation — demand side to Access control's supply side) -->
+    <div id="paneRequests" style="display:none">
+      <div class="roomhead">
+        <div class="lab">Two-way document requests</div>
+        <h1>Ask, and be asked.</h1>
+        <p class="sub">The deal's request list, both directions: documents you need from a counterparty, and documents they need from you — each with a deadline and a review window. Fulfilling a request grants exactly that access, set to expire when the window closes.</p>
+      </div>
+
+      <div class="card pad">
+        <div class="lab">Request a document</div>
+        <div class="reqform">
+          <input class="inp" id="rqDoc" placeholder="Document you need (e.g. Cap table, fully diluted)" />
+          <select class="inp" id="rqParty" style="max-width:200px"></select>
+          <label class="reqlab">needed by <input class="inp" id="rqBy" type="date" /></label>
+          <label class="reqlab">review window <input class="inp" id="rqDays" type="number" min="0" value="14" /> days</label>
+          <button class="btn primary" id="rqSend">Send request</button>
+        </div>
+        <div class="status" id="rqMsg"></div>
+      </div>
+
+      <div class="ovsec"><div class="ovsech">You're requesting <span class="ovhint">documents others owe you</span></div>
+        <div id="rqOut"></div>
+      </div>
+
+      <div class="ovsec"><div class="ovsech">Requested from you <span class="ovhint">documents you owe</span></div>
+        <div id="rqIn"></div>
+      </div>
+
+      <p class="muted small" style="margin-top:14px">The request board and fulfilment are live — fulfilling a request is a real on-chain grant, scoped to expire at the end of the review window. Cross-party <i>delivery</i> of a request (so it reaches the other side's app, and their reply comes back) rides the same encrypted messaging layer as Q&amp;A, which is pending; here the counterparty side is staged so you can see the full flow.</p>
+    </div>
+
+    <!-- Q&A (governed deal conversation, same gate as the documents) — DESIGNED PREVIEW -->
+    <div id="paneQA" style="display:none">
+      <div class="roomhead">
+        <div class="lab">The deal's nervous system · governed Q&amp;A</div>
+        <h1>Ask in the room, not over email.</h1>
+        <p class="sub">Questions and answers that live behind the same gate as the documents — the same named identities, the same on-chain audit trail, scoped to exactly who should see them. Revoke the deal and the conversation seals with it.</p>
+      </div>
+
+      <div class="prevbanner">
+        <span class="prevtag">PREVIEW · NOT LIVE YET</span>
+        <span>Fully designed; the live version rides an SDK that hasn't caught up to our stack yet. The honest reason — and the spike that proves it works — is below.</span>
+      </div>
+
+      <div class="card pad">
+        <div class="qahead">
+          <div class="lab" style="margin:0">Thread · Project Páramo</div>
+          <span class="qascope">🔒 clean team · Legal + Financial · 3 members · seals on revoke</span>
+        </div>
+        <div class="qathread" id="qaThread"></div>
+        <div class="qacompose">
+          <input class="inp" id="qaInput" placeholder="Ask the room…" />
+          <button class="btn primary" id="qaSend">Send</button>
+        </div>
+        <div class="status" id="qaMsg"></div>
+      </div>
+
+      <div class="qaprops">
+        <div class="qaprop"><b>Same gate</b><span>The conversation is keyed by the same Seal policy as the files. No second access system to manage.</span></div>
+        <div class="qaprop"><b>Named identities</b><span>Every message is signed by the same on-chain identity that opens the documents — never anonymous, never hex.</span></div>
+        <div class="qaprop"><b>Revoke → it seals</b><span>Remove a party and they lose the thread's history, not just new messages. The deal closes, the talk closes.</span></div>
+      </div>
+
+      <div class="whypanel">
+        <div class="whyhead"><span class="whydot"></span> Why this room isn't switched on yet</div>
+        <p>Governed Q&amp;A rides <b>Sui Stack Messaging</b> — Mysten's own SDK — so the conversation inherits the very same key servers, identities and audit trail as your documents instead of bolting on a second system. The catch is purely timing: that SDK currently targets an <b>earlier generation of the stack (Sui 1.45 / Seal 0.9.6)</b>, while Elur already runs the <b>current generation (Sui 2.x / Seal 1.1.x)</b>. Bridging two generations means dependency gymnastics — a forced Move Registry override — that we won't bake into a product people trust with deal documents.</p>
+        <p>So we did the honest thing: <b>built a working spike</b> that proves the design end-to-end, <b>reported the version gap upstream</b> to the SDK team, and we'll adopt it cleanly the moment it catches up — rather than ship a hack. This isn't a feature we couldn't build; it's one we're sequencing behind a dependency and our audit. This is the first build of Elur, and we take on no clients until that audit lands anyway.</p>
+        <details class="whytech">
+          <summary>The technical detail (for the curious)</summary>
+          <p>The spike runs two custom <code>Ed25519</code> identities with a gasless reader and exercises the full path: send, receive, and the removal-semantics test — when a member is removed, do they lose thread <b>history</b>? They do, which is exactly the property we want: <i>revoke the deal, the conversation seals.</i> The blocker was the generation mismatch: the SDK needed a Move Registry (MVR) override to resolve against our packages even though <code>packageConfig</code> shouldn't have required it. Payloads are tiny next to documents, so messaging is a natural fit once the versions align — same token = identity + audit, smaller blobs.</p>
+        </details>
+      </div>
+    </div>
+</div>
+<div class="previewnote">layout preview · upload + open + comments are real in the app</div>
+<script>
+const FOLDER=`<svg viewBox="0 0 24 24" width="22" height="22"><path d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>`;
+const folders=[["Corporate",2,2],["Financial",1,3],["Legal",1,1],["Shared on request",1,1]];
+const box=document.getElementById("roomList");
+function grid(){box.innerHTML=`<div class="foldergrid">`+folders.map(([f,o,t])=>`<button class="foldercard" onclick="docs('${f}')"><div class="fcico">${FOLDER}</div><div class="fcname">${f}</div><div class="fcmeta">${o} of ${t} you can open</div></button>`).join("")+`</div>`;document.getElementById("roomDoc").innerHTML="";}
+window.docs=function(f){const set={Financial:[["Term Sheet (DRAFT)","open"],["Confidential Budget","locked"],["Audited 2024 financials","locked"]],Corporate:[["Term Sheet","open"],["Board Resolution","open"]],Legal:[["Legal Counsel","open"]],"Shared on request":[["Proof of funds","open"]]}[f]||[];
+box.innerHTML=`<div class="docbreadcrumb"><button class="crumblink" onclick="grid()">← All folders</button> <span class="crumbsep">/</span> <b>${f}</b></div><div class="doccards">`+set.map(([n,a])=>{const badge=a==="open"?'<span class="rmbadge open">shared with you</span>':'<span class="rmbadge lock">not shared</span>';const act=a==="open"?`<button class="mini" onclick="openDoc('${n.replace(/'/g,"")}')">Open</button>`:'<button class="mini">Request access</button>';const cc=n.indexOf("Term Sheet")===0?'<span class="doccmt">💬 1</span>':'';return `<div class="doccard ${a==='open'?'':'locked'}"><div class="dcico">${a==='open'?'📄':'🔒'}</div><div class="dcmain"><div class="dcname">${n}</div><div class="dcmeta">${a==='open'?'open and comment':'request access to review'}</div></div>${cc}${badge}${act}</div>`;}).join("")+`</div>`;};
+window.openDoc=function(n){document.getElementById("roomDoc").innerHTML=`<div class="card pad" style="margin-top:14px"><div class="dochead"><div class="lab" style="margin:0">${n}</div><div style="display:flex;gap:6px"><button class="mini">Download</button><button class="mini" onclick="document.getElementById('roomDoc').innerHTML=''">Close</button></div></div><div class="docbody"><pre class="rmpre">PROJECT PÁRAMO — TERM SHEET (DRAFT, CONFIDENTIAL)\n\n1. Purchase price: USD 4.2M, subject to adjustment...\n2. Structure: stock purchase, 70% cash / 30% equity\n4. Indemnification: 12% escrow, 18-month survival...</pre></div><div class="cmtsec"><div class="ovsech">Comments <span class="ovhint">visible to people with access</span></div><div class="cmtthread"><div class="cmt"><div class="cmtwho">Camila Duarte <span class="cmtt">1h ago</span></div><div class="cmtbody">Clause 4 — can we widen the indemnity carve-out before we counter-sign?</div></div><div class="cmt mine"><div class="cmtwho">You <span class="cmtt">just now</span></div><div class="cmtbody">Agreed — redline by EOD.</div></div></div><div class="cmtcompose"><input class="inp" placeholder="Write a comment to the counterparty…" /><button class="mini">Send</button></div><div class="cmtnote">ⓘ Saved here now. Cross-party delivery rides Sui Stack Messaging (pending).</div></div></div>`;};
+docs("Financial");
+</script>
+</body></html>

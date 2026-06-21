@@ -4,63 +4,207 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Elur</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;1,9..144,400&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<!-- pdf.js: extract text from PDF documents the agent is given as memory.
+     Prefers the vendored copy in public/pdfjs/ (offline-proof for demos); falls back to CDN.
+     Vendor it with:  curl -o public/pdfjs/pdf.min.js https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js
+                      curl -o public/pdfjs/pdf.worker.min.js https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js -->
+<script src="/pdfjs/pdf.min.js" onerror="var s=document.createElement('script');s.src='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';s.onload=function(){pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';};document.head.appendChild(s);"></script>
+<script>if(window.pdfjsLib){pdfjsLib.GlobalWorkerOptions.workerSrc="/pdfjs/pdf.worker.min.js";}</script>
 <link rel="stylesheet" href="/src/style.css" />
 <style>
   /* Agent tab — chat bubbles + memory cards (reuses app variables/classes) */
   .ayou,.abot{max-width:88%;font-size:14px;padding:10px 13px;border-radius:12px;white-space:pre-wrap;line-height:1.45}
-  .ayou{align-self:flex-end;background:#2563eb;color:#fff;border-bottom-right-radius:4px}
-  .abot{align-self:flex-start;background:#f1f3f7;border:1px solid #e6e9ef;border-bottom-left-radius:4px}
+  .ayou{align-self:flex-end;background:var(--accent);color:var(--cream);border-bottom-right-radius:4px}
+  .abot{align-self:flex-start;background:var(--panel2);border:1px solid var(--line2);border-bottom-left-radius:4px}
   .ause{display:block;margin-top:6px;font-size:10px;opacity:.7;font-family:ui-monospace,monospace}
-  .amem{border:1px solid #e6e9ef;border-radius:10px;padding:11px 12px;margin-bottom:9px;background:#fff}
+  .amem{border:1px solid var(--line);border-radius:10px;padding:11px 12px;margin-bottom:9px;background:var(--panel)}
   .amem .atop{display:flex;align-items:center;gap:8px;margin-bottom:4px}
   .amem .albl{font-weight:600;font-size:14.5px}
   .abadge{font-size:10px;font-weight:600;padding:3px 8px;border-radius:999px;font-family:ui-monospace,monospace}
-  .abadge.on{background:#e3f6ec;color:#0f7a47}.abadge.off{background:#fde7e7;color:#c0392b}
-  .amem .abid{font-size:10px;color:#94a3b8;font-family:ui-monospace,monospace;word-break:break-all;margin-bottom:7px}
-  .arev{background:transparent;color:#c0392b;border:1px solid #e3b3b3;border-radius:8px;font-size:12px;padding:6px 11px;cursor:pointer}
-  .arev:hover:not(:disabled){background:#c0392b;color:#fff}
+  .abadge.on{background:#ddeae1;color:var(--ok)}.abadge.off{background:#f3ded7;color:var(--bad)}
+  .amem .abid{font-size:10px;color:var(--faint);font-family:ui-monospace,monospace;word-break:break-all;margin-bottom:7px}
+  .arev{background:transparent;color:var(--bad);border:1px solid #d9b3a8;border-radius:8px;font-size:12px;padding:6px 11px;cursor:pointer}
+  .arev:hover:not(:disabled){background:var(--bad);color:var(--cream)}
   .asealed{font-size:12px;color:#94a3b8;font-style:italic}
 </style>
 </head>
 <body>
   <div class="topbar">
     <div class="logo">
-      <svg class="lockmark" viewBox="0 0 48 48" fill="none" stroke="#2563eb" stroke-width="2.8" stroke-linecap="round"><path d="M24.0 24.0L24.0 4.0M24.0 11.6L28.9 8.2M24.0 11.6L19.1 8.2M24.0 24.0L41.3 14.0M34.7 17.8L40.2 20.3M34.7 17.8L35.3 11.8M24.0 24.0L41.3 34.0M34.7 30.2L35.3 36.2M34.7 30.2L40.2 27.7M24.0 24.0L24.0 44.0M24.0 36.4L19.1 39.8M24.0 36.4L28.9 39.8M24.0 24.0L6.7 34.0M13.3 30.2L7.8 27.7M13.3 30.2L12.7 36.2M24.0 24.0L6.7 14.0M13.3 17.8L12.7 11.8M13.3 17.8L7.8 20.3"/></svg>
       <span>ELUR</span>
     </div>
+    <div class="tabs">
+      <div class="tab" id="tabOverview"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="7" height="7" rx="1.5"/><rect x="13" y="4" width="7" height="7" rx="1.5"/><rect x="4" y="13" width="7" height="7" rx="1.5"/><rect x="13" y="13" width="7" height="7" rx="1.5"/></svg>Overview</div>
+      <div class="tab on" id="tabOpen"><svg viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 018 0"/></svg>Open</div>
+      <div class="tab" id="tabShare"><svg viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 018 0v3"/><circle cx="12" cy="15.5" r="1.3"/></svg>Encrypt</div>
+      <div class="tab" id="tabAgent"><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.2"/><path d="M3.5 19c.6-3.2 2.8-5 5.5-5s4.9 1.8 5.5 5"/><circle cx="17" cy="9" r="2.4"/><path d="M15.5 14.3c2.3.2 4 1.7 4.7 4.2"/></svg>Access control</div>
+      <div class="tab" id="tabRequests"><svg viewBox="0 0 24 24"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4.5V3h6v1.5M8.5 10l1.5 1.5L13 8.5M8.5 15.5l1.5 1.5 3-3"/></svg>Requests</div>
+      <div class="tab" id="tabRoom"><svg viewBox="0 0 24 24"><path d="M4 5a1 1 0 011-1h4l2 2h8a1 1 0 011 1v3H4z"/><path d="M4 9h17v9a1 1 0 01-1 1H5a1 1 0 01-1-1z"/></svg>Documents</div>
+      <div class="tab preview" id="tabQA"><svg viewBox="0 0 24 24"><path d="M21 12a8 8 0 01-8 8H4l2.5-3A8 8 0 1121 12z"/><path d="M9 11h6M9 14h4"/></svg>Q&amp;A<span class="soonpill prev">PREVIEW</span></div>
+      <div class="tab" id="tabActivity"><svg viewBox="0 0 24 24"><path d="M3 12h4l3-8 4 16 3-8h4"/></svg>Activity</div>
+    </div>
     <span class="spacer"></span>
-    <span class="pill">Sui testnet</span>
-    <button class="pill pill-btn" id="tourBtn" title="A quick guided tour">✨ Tour</button>
-    <button class="pill pill-btn hidden" id="signoutTop" title="Your files and keys are safe — sign back in anytime.">Sign out</button>
+    <div id="acctBox" class="acctbox hidden">
+      <div class="acct-label">Signed in as</div>
+      <div class="acct-id" id="acctId" title="Click to copy your Sui address">—</div>
+      <button class="acct-signout" id="signoutTop" title="Your files and keys are safe — sign back in anytime.">Sign out</button>
+    </div>
+    <div class="side-pills">
+      <span class="pill">Sui testnet</span>
+      <button class="pill pill-btn" id="tourBtn" title="A quick guided tour">Tour</button>
+    </div>
   </div>
 
   <div class="wrap">
-    <div class="pagehead">
-      <h1>Your files, sealed.</h1>
-      <p class="sub">Encrypt, share with a key you control, open files others sent you — and revoke anytime. Nothing is uploaded.</p>
-    </div>
-
-    <div class="tabs">
-      <div class="tab on" id="tabOpen">Open a file</div>
-      <div class="tab" id="tabShare">Encrypt a file</div>
-      <div class="tab" id="tabAgent">Agent</div>
-    </div>
 
     <!-- OPEN (recipient) -->
     <div id="paneOpen">
+      <div class="roomhead">
+        <div class="lab">Recipient · No account needed</div>
+        <h1>Your files, sealed.</h1>
+        <p class="sub">Open files others sent you — they unlock on this Mac, only while the sender still allows access.</p>
+      </div>
       <div class="card pad">
         <div class="drop" id="openBtn">
           <svg viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 018 0"/></svg>
-          <div class="drop-big">Open an encrypted file</div>
-          <div class="drop-sub">No account needed. Decrypts on your device only if the sender's key still grants access.</div>
+          <div class="drop-big">Open a sealed file</div>
+          <div class="drop-sub">No account needed. It unlocks on this Mac only while the sender still allows access.</div>
+          <button class="btn primary" id="openChooseBtn" style="margin-top:14px">Choose file…</button>
         </div>
         <div class="status" id="ostatus"></div>
         <div id="oout"></div>
+      </div>
+      <div class="steps3">
+        <div class="s3"><div class="s3n">1 · Receive</div><p>A .elur file arrives through any channel — email, Drive, USB. It travels safely anywhere: the seal, not the channel, is the security.</p></div>
+        <div class="s3"><div class="s3n">2 · Open it here</div><p>No account, no sign-up, nothing uploaded. It unlocks on this Mac, for your eyes.</p></div>
+        <div class="s3"><div class="s3n">3 · It stays theirs</div><p>It reads only while the sender allows — they shared it, they still own it.</p></div>
+      </div>
+    </div>
+
+    <!-- OVERVIEW (working dashboard — reads live state + the ledger) -->
+    <div id="paneOverview" style="display:none">
+      <div class="roomhead">
+        <div class="lab">Your deals, at a glance</div>
+        <h1>Overview</h1>
+        <p class="sub">Every deal you govern, summed from your own records and the public ledger — documents live and sealed, who can open them, opens this week, and what expires next. Nothing here is stored by us; it's read fresh each time you open this room.</p>
+      </div>
+      <div id="ovBody"><p class="muted small">Reading your deals…</p></div>
+    </div>
+
+    <!-- DEAL ROOM (recipient browses a governed room — hosted by no one) -->
+    <div id="paneRoom" style="display:none">
+      <div class="roomhead">
+        <div class="lab">Documents · governed by the ledger</div>
+        <h1>Documents</h1>
+        <p class="sub">Browse the deal by folder and open exactly what's been shared with you. Locked documents still show — so you know what exists — and you can request access in a click. Comment on any open document, scoped to the people who can see it.</p>
+      </div>
+      <div class="card pad">
+        <div class="roomtools">
+          <button class="btn primary" id="roomAddFiles">Add documents…</button>
+          <button class="btn ghost" id="roomAddFolder">Add a folder…</button>
+          <label class="muted small" style="display:flex;align-items:center;gap:6px">store
+            <select id="roomStore" class="inp" style="font-size:13px;padding:6px 8px;width:auto">
+              <option value="walrus">on Walrus (always available)</option>
+              <option value="local">as a sealed file (you send it)</option>
+            </select>
+          </label>
+          <span class="rtsp"></span>
+          <button class="btn ghost" id="roomLoad">Open a shared room…</button>
+          <label class="muted small" style="display:flex;align-items:center;gap:6px">view as
+            <select id="roomViewAs" class="inp" style="font-size:13px;padding:6px 8px;min-width:140px"></select>
+          </label>
+        </div>
+        <div class="muted small" id="roomMeta" style="margin-bottom:12px"></div>
+        <div id="roomList"><p class="muted small">No documents loaded. Click “Open a shared room…” and choose a manifest a sender exported for you.</p></div>
+        <div class="status" id="roomStatus"></div>
+        <div id="roomDoc"></div>
+      </div>
+    </div>
+
+    <!-- REQUESTS (two-way document negotiation — demand side to Access control's supply side) -->
+    <div id="paneRequests" style="display:none">
+      <div class="roomhead">
+        <div class="lab">Two-way document requests</div>
+        <h1>Ask, and be asked.</h1>
+        <p class="sub">The deal's request list, both directions: documents you need from a counterparty, and documents they need from you — each with a deadline and a review window. Fulfilling a request grants exactly that access, set to expire when the window closes.</p>
+      </div>
+
+      <div class="card pad">
+        <div class="lab">Request a document</div>
+        <div class="reqform">
+          <input class="inp" id="rqDoc" placeholder="Document you need (e.g. Cap table, fully diluted)" />
+          <select class="inp" id="rqParty" style="max-width:200px"></select>
+          <label class="reqlab">needed by <input class="inp" id="rqBy" type="date" /></label>
+          <label class="reqlab">review window <input class="inp" id="rqDays" type="number" min="0" value="14" /> days</label>
+          <button class="btn primary" id="rqSend">Send request</button>
+        </div>
+        <div class="status" id="rqMsg"></div>
+      </div>
+
+      <div class="ovsec"><div class="ovsech">You're requesting <span class="ovhint">documents others owe you</span></div>
+        <div id="rqOut"></div>
+      </div>
+
+      <div class="ovsec"><div class="ovsech">Requested from you <span class="ovhint">documents you owe</span></div>
+        <div id="rqIn"></div>
+      </div>
+
+      <p class="muted small" style="margin-top:14px">The request board and fulfilment are live — fulfilling a request is a real on-chain grant, scoped to expire at the end of the review window. Cross-party <i>delivery</i> of a request (so it reaches the other side's app, and their reply comes back) rides the same encrypted messaging layer as Q&amp;A, which is pending; here the counterparty side is staged so you can see the full flow.</p>
+    </div>
+
+    <!-- Q&A (governed deal conversation, same gate as the documents) — DESIGNED PREVIEW -->
+    <div id="paneQA" style="display:none">
+      <div class="roomhead">
+        <div class="lab">The deal's nervous system · governed Q&amp;A</div>
+        <h1>Ask in the room, not over email.</h1>
+        <p class="sub">Questions and answers that live behind the same gate as the documents — the same named identities, the same on-chain audit trail, scoped to exactly who should see them. Revoke the deal and the conversation seals with it.</p>
+      </div>
+
+      <div class="prevbanner">
+        <span class="prevtag">PREVIEW · NOT LIVE YET</span>
+        <span>Fully designed; the live version rides an SDK that hasn't caught up to our stack yet. The honest reason — and the spike that proves it works — is below.</span>
+      </div>
+
+      <div class="card pad">
+        <div class="qahead">
+          <div class="lab" style="margin:0">Thread · Project Páramo</div>
+          <span class="qascope">🔒 clean team · Legal + Financial · 3 members · seals on revoke</span>
+        </div>
+        <div class="qathread" id="qaThread"></div>
+        <div class="qacompose">
+          <input class="inp" id="qaInput" placeholder="Ask the room…" />
+          <button class="btn primary" id="qaSend">Send</button>
+        </div>
+        <div class="status" id="qaMsg"></div>
+      </div>
+
+      <div class="qaprops">
+        <div class="qaprop"><b>Same gate</b><span>The conversation is keyed by the same Seal policy as the files. No second access system to manage.</span></div>
+        <div class="qaprop"><b>Named identities</b><span>Every message is signed by the same on-chain identity that opens the documents — never anonymous, never hex.</span></div>
+        <div class="qaprop"><b>Revoke → it seals</b><span>Remove a party and they lose the thread's history, not just new messages. The deal closes, the talk closes.</span></div>
+      </div>
+
+      <div class="whypanel">
+        <div class="whyhead"><span class="whydot"></span> Why this room isn't switched on yet</div>
+        <p>Governed Q&amp;A rides <b>Sui Stack Messaging</b> — Mysten's own SDK — so the conversation inherits the very same key servers, identities and audit trail as your documents instead of bolting on a second system. The catch is purely timing: that SDK currently targets an <b>earlier generation of the stack (Sui 1.45 / Seal 0.9.6)</b>, while Elur already runs the <b>current generation (Sui 2.x / Seal 1.1.x)</b>. Bridging two generations means dependency gymnastics — a forced Move Registry override — that we won't bake into a product people trust with deal documents.</p>
+        <p>So we did the honest thing: <b>built a working spike</b> that proves the design end-to-end, <b>reported the version gap upstream</b> to the SDK team, and we'll adopt it cleanly the moment it catches up — rather than ship a hack. This isn't a feature we couldn't build; it's one we're sequencing behind a dependency and our audit. This is the first build of Elur, and we take on no clients until that audit lands anyway.</p>
+        <details class="whytech">
+          <summary>The technical detail (for the curious)</summary>
+          <p>The spike runs two custom <code>Ed25519</code> identities with a gasless reader and exercises the full path: send, receive, and the removal-semantics test — when a member is removed, do they lose thread <b>history</b>? They do, which is exactly the property we want: <i>revoke the deal, the conversation seals.</i> The blocker was the generation mismatch: the SDK needed a Move Registry (MVR) override to resolve against our packages even though <code>packageConfig</code> shouldn't have required it. Payloads are tiny next to documents, so messaging is a natural fit once the versions align — same token = identity + audit, smaller blobs.</p>
+        </details>
       </div>
     </div>
 
     <!-- ENCRYPT (sender) -->
     <div id="paneShare" style="display:none">
+      <div class="roomhead">
+        <div class="lab">Sender · Encrypted on this device</div>
+        <h1>Share on your terms.</h1>
+        <p class="sub">Files are encrypted locally, on your machine — they never touch a server, ours or anyone's. Share the sealed copy anywhere, revoke anytime.</p>
+      </div>
       <div id="lockBox" class="card pad">
         <div class="lab">Sign in to encrypt</div>
         <p class="muted small" style="margin-top:0">It needs your identity to sign. No password to remember — and signing out never loses your files.</p>
@@ -78,7 +222,6 @@
       </div>
 
       <div id="shareBox" style="display:none">
-        <div class="idbar"><span class="dot"></span> Signed in <span class="muted addr" id="addr"></span><span class="sp"></span><span class="lock" id="lock" title="Your files and keys are safe — sign back in anytime to regain access.">sign out</span></div>
 
         <!-- Step 1: file -->
         <div class="sec">
@@ -90,7 +233,7 @@
               <div class="drop-sub">Encrypted on your device before anything leaves.</div>
             </div>
             <div style="text-align:center;margin-top:10px">
-              <a href="#" id="pickFolderBtn" class="small" style="color:var(--muted)">…or encrypt a whole folder 📦</a>
+              <a href="#" id="pickFolderBtn" class="small" style="color:var(--muted)">…or encrypt a whole folder</a>
             </div>
             <div id="fileChosen" class="filepick hidden"></div>
           </div>
@@ -107,7 +250,7 @@
             </div>
             <div class="mode" id="modeVault">
               <div class="mt"><svg viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 018 0v3"/></svg> Private vault</div>
-              <div class="md">Only you can ever open it — encrypted offline under your key. Not for sending.</div>
+              <div class="md">Only you can ever open it — sealed offline, tied to your sign-in. Not for sending.</div>
               <div class="tagx ctrl">just for you · offline</div>
             </div>
           </div>
@@ -130,7 +273,7 @@
                 </select>
               </div>
               <div class="scope">
-                <label>Max opens</label>
+                <label>Open limit</label>
                 <select id="nsOpens">
                   <option value="0">unlimited</option>
                   <option value="1">1</option>
@@ -142,10 +285,11 @@
             <div class="scope" style="margin-top:12px">
               <label>Recipient can</label>
               <select id="nsExport">
+                <option value="0" selected>View only — in Elur, watermarked, can't be exported</option>
                 <option value="1">View &amp; export — open in Word, Preview, etc.</option>
-                <option value="0">View only — in Elur, watermarked, can't be exported</option>
               </select>
             </div>
+            <p class="muted small" style="margin-top:10px;margin-bottom:0">These rules apply to whoever holds the file — and you can revoke everyone, anytime, from this room.</p>
           </div>
         </div>
 
@@ -154,6 +298,7 @@
           <div class="lab"><span class="num">4</span> Encrypt</div>
           <div class="card pad">
             <button class="btn primary block" id="encryptBtn">Encrypt &amp; prepare to send</button>
+            <p class="muted small" style="margin-top:10px;text-align:center">You'll get a sealed file to share however you like — email, Drive, USB. Elur never sends anything.</p>
             <div class="status" id="sstatus"></div>
             <div id="sout"></div>
           </div>
@@ -168,9 +313,14 @@
 
     <!-- AGENT (governed memory for an AI agent) -->
     <div id="paneAgent" style="display:none">
+      <div class="roomhead">
+        <div class="lab">Access · People and agents, one list</div>
+        <h1>Who can open your documents.</h1>
+        <p class="sub">Every identity that holds a key — people and AI agents alike. Name them here (names live only on this Mac), grant or revoke each on the ledger. An agent is just an identity you can switch off.</p>
+      </div>
       <div class="card pad" id="agentGate">
-        <div class="lab">Give your AI agent a memory you control</div>
-        <p class="muted small" style="margin-top:0">Your agent's memories are encrypted, stored on Walrus, and governed by your identity on-chain. Revoke one anytime — and the agent forgets it. Sign in to begin.</p>
+        <div class="lab">Sign in to manage access</div>
+        <p class="muted small" style="margin-top:0">Granting and revoking are signed by your identity on the public ledger — sign in to begin. Nothing leaves this Mac unsealed.</p>
         <button class="btn primary block" id="aSignin" style="margin-top:12px">
           <svg width="18" height="18" viewBox="0 0 48 48"><path fill="#fff" d="M43.6 20.1H42V20H24v8h11.3C33.7 32.7 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.9 1.2 8 3l5.7-5.7C34.3 6.1 29.4 4 24 4 13 4 4 13 4 24s9 20 20 20 20-9 20-20c0-1.3-.1-2.7-.4-3.9z"/></svg>
           Sign in with Google
@@ -179,34 +329,48 @@
       </div>
 
       <div id="agentMain" style="display:none">
-        <div class="idbar"><span class="dot"></span> Agent governed by <span class="muted addr" id="aAddr"></span><span class="sp"></span><span class="mono" id="aBrain" style="font-size:11px;color:var(--accent)">…</span></div>
 
         <div class="sec">
-          <div class="lab"><span class="num">1</span> Governed memory · on Walrus</div>
+          <div class="lab"><span class="num">1</span> Who holds a key</div>
           <div class="card pad">
-            <div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap">
-              <button class="btn ghost" id="aSeed" style="padding:8px 12px;font-size:13px">Load demo memories</button>
-              <button class="btn ghost" id="aReset" style="padding:8px 12px;font-size:13px">Reset</button>
+            <p class="muted small" style="margin-top:0">Everyone who can open your documents — people and agents. You always know who; the public ledger sees only addresses. Your own access never depends on this list.</p>
+            <div style="display:flex;gap:8px;margin:12px 0 6px;flex-wrap:wrap">
+              <input class="inp" id="ppAddr" placeholder="0x… identity address — they copy it from their own Elur" style="flex:2;min-width:220px;font-size:13px" />
+              <input class="inp" id="ppName" placeholder="name it — “Camila”, “Buyer's agent”…" style="flex:1.4;min-width:170px;font-size:13.5px" />
+              <button class="btn ghost" id="ppAdd" style="padding:9px 14px">Add identity</button>
             </div>
-            <div id="aMems"><p class="muted small">No memories yet.</p></div>
-            <div style="display:flex;flex-direction:column;gap:8px;margin-top:10px;border-top:1px solid var(--line2,#eee);padding-top:12px">
-              <input class="inp" id="aLabel" placeholder="label (e.g. budget)" />
-              <input class="inp" id="aText" placeholder="what the agent should remember…" />
-              <button class="btn primary" id="aTeach">Teach the agent</button>
-            </div>
+            <div id="ppAddMsg" class="small" style="color:var(--bad);min-height:16px;margin-bottom:4px"></div>
+            <div style="margin-bottom:12px"><a href="#" id="ppGen" class="small" style="color:var(--muted)">…or generate a test identity to try it</a></div>
+            <div id="ppList"><p class="muted small">Reading the ledger…</p></div>
           </div>
         </div>
 
         <div class="sec">
-          <div class="lab"><span class="num">2</span> Talk to your agent</div>
+          <div class="lab"><span class="num">2</span> The documents · sealed on Walrus</div>
           <div class="card pad">
-            <div id="aMsgs" style="display:flex;flex-direction:column;gap:11px;min-height:120px;max-height:300px;overflow-y:auto;margin-bottom:12px">
-              <div class="abot">Teach me something, then ask me about it — and revoke a memory anytime to watch me forget it.</div>
+            <button class="btn primary block" id="aDocs" style="margin-bottom:6px">Add a folder of documents</button>
+            <div style="text-align:center;margin-bottom:10px"><a href="#" id="aDocsFile" class="small" style="color:var(--muted)">…or a single document</a></div>
+            <div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap">
+              <button class="btn ghost" id="aExport" style="padding:8px 12px;font-size:13px" title="Save the share manifest — labels + blob ids, no content. Point any agent's Elur MCP server at it.">Export manifest…</button>
+              <button class="btn ghost" id="aReset" style="padding:8px 12px;font-size:13px;color:var(--faint)" title="Clear the demo and start with your own documents.">Clear demo</button>
             </div>
-            <div style="display:flex;gap:8px">
-              <input class="inp" id="aQ" placeholder="Ask your agent…" style="flex:1" />
-              <button class="btn primary" id="aAsk">Ask</button>
-            </div>
+            <div id="aMems"><p class="muted small">No documents yet. Add a folder or a file above — each one is sealed on your Mac and stored on Walrus.</p></div>
+            <p class="muted small" style="margin-top:12px;border-top:1px solid var(--line2,#eee);padding-top:12px">Each document is sealed and governed the moment you add it. Then choose who can open it — a person or an AI agent, same list — up in <b>Who holds a key</b>. An agent is just an identity you can revoke.</p>
+            <details style="margin-top:10px;border-top:1px solid var(--line2,#eee);padding-top:12px">
+              <summary class="muted small" style="cursor:pointer">…or add a quick text note</summary>
+              <div style="display:flex;flex-direction:column;gap:8px;margin-top:10px">
+                <input class="inp" id="aLabel" placeholder="label (e.g. term sheet)" />
+                <input class="inp" id="aText" placeholder="the note's contents…" />
+                <button class="btn ghost" id="aTeach">Add note</button>
+              </div>
+            </details>
+          </div>
+        </div>
+
+        <div class="sec">
+          <div class="lab"><span class="num">3</span> Connect your agent</div>
+          <div class="card pad">
+            <p class="muted small" style="margin-top:0">Export the manifest above and point your own AI — Claude, Cursor, or any MCP client — at Elur's connector. It opens these documents through the gate as the identity you granted, and the moment you revoke, its next read returns <b>access denied</b>. The agent lives where it already lives; only the key answers to you.</p>
           </div>
         </div>
 
@@ -214,7 +378,24 @@
       </div>
     </div>
 
-    <p class="foot">Files are never uploaded or stored by Elur. Access is governed by your on-chain key and revocable anytime.</p>
+    <!-- ACTIVITY — the Evidence room: the public ledger, translated for humans -->
+    <div id="paneActivity" style="display:none">
+      <div class="roomhead">
+        <div class="lab">Evidence · The public ledger</div>
+        <h1>Every access, signed.</h1>
+        <p class="sub">Your governance history, read live from Sui — seals, grants, opens, revocations. Recorded on rails neither party can edit. Not even Elur.</p>
+      </div>
+      <div class="card pad">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+          <div class="lab" style="margin:0">Latest events</div>
+          <input class="inp" id="evSearch" placeholder="Filter — document, identity, or action (e.g. “term sheet”, 0x5010, revoked)" style="flex:1;padding:7px 11px;font-size:13.5px" />
+          <button class="btn ghost" id="evRefresh" style="padding:7px 12px;font-size:13px">Refresh</button>
+        </div>
+        <div id="evList"><p class="muted small">Reading the ledger…</p></div>
+      </div>
+    </div>
+
+    <p class="foot">Files are never uploaded or stored by Elur. Access is governed by the sender and revocable anytime — nothing ever leaves this Mac unsealed.</p>
   </div>
   <!-- guided tour overlay -->
   <div id="tourSpot"></div>

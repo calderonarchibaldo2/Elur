@@ -14,8 +14,7 @@ const execFileP = promisify(execFile);
 const subtle = webcrypto.subtle;
 const BIG = 1024 * 1024 * 128; // 128MB stdout buffer ceiling
 
-// ---- Elur crypto (same AES-256-GCM as the app; no size-class padding here —
-// agent memories are small and we don't need file-metadata hiding for them) ----
+// ---- Elur crypto (same AES-256-GCM as the app) ----
 export function randomKey() {
   return webcrypto.getRandomValues(new Uint8Array(32));
 }
@@ -28,6 +27,27 @@ export async function aesEncrypt(plaintextBytes, ck) {
 export async function aesDecrypt(iv, ct, ck) {
   const key = await subtle.importKey("raw", ck, "AES-GCM", false, ["decrypt"]);
   return new Uint8Array(await subtle.decrypt({ name: "AES-GCM", iv }, key, ct));
+}
+
+// ---- Size-class padding (blob-size privacy on public Walrus) ----
+// True length lives INSIDE the encrypted frame ([len(4) | bytes | zero-pad]), so
+// the cleartext package leaks nothing. Coarse buckets make different-length
+// memories produce equal-size ciphertext. Mirrors the app's mem* path.
+export function memSizeClass(n) {
+  const b = [4096, 65536, 1048576];
+  for (const x of b) if (n <= x) return x;
+  return Math.ceil(n / 1048576) * 1048576;
+}
+export async function aesEncryptPadded(plaintextBytes, ck) {
+  const frame = new Uint8Array(memSizeClass(4 + plaintextBytes.length));
+  new DataView(frame.buffer).setUint32(0, plaintextBytes.length);
+  frame.set(plaintextBytes, 4);
+  return aesEncrypt(frame, ck);
+}
+export async function aesDecryptPadded(iv, ct, ck) {
+  const frame = await aesDecrypt(iv, ct, ck);
+  const len = new DataView(frame.buffer, frame.byteOffset).getUint32(0);
+  return frame.subarray(4, 4 + len);
 }
 
 // ---- Walrus storage via the CLI (proven in the step-0 probe) ----

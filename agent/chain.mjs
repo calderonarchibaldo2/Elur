@@ -28,8 +28,11 @@ const SERVER_CONFIGS = [
 
 export const suiClient = new SuiJsonRpcClient({ url: getJsonRpcFullnodeUrl("testnet"), network: "testnet" });
 
-// Agent identity — loaded from the gitignored key file the user exported.
-const keyFile = JSON.parse(readFileSync(new URL("./.agent-key.json", import.meta.url), "utf8"));
+// Agent identity — its BADGE. Defaults to the gitignored .agent-key.json; override
+// with ELUR_KEY=/path/to/key.json to run as a different identity (e.g. a counterparty
+// agent on the same machine, or each party's own key on their own machine).
+const KEY_PATH = process.env.ELUR_KEY || new URL("./.agent-key.json", import.meta.url).pathname;
+const keyFile = JSON.parse(readFileSync(KEY_PATH, "utf8"));
 export const keypair = Ed25519Keypair.fromSecretKey(keyFile.exportedPrivateKey);
 export const AGENT_ADDRESS = keypair.toSuiAddress();
 
@@ -84,8 +87,10 @@ export async function isPolicyActive(policyId) {
 // Seal-unwrap: asks the key servers for the key, which they release only if
 // seal_approve passes. Throws if the policy is revoked/expired/denied.
 export async function sealUnwrap(policyId, encryptedObject) {
-  const ephemeral = new Ed25519Keypair(); // fresh session identity, as in the app
-  const sessionKey = await SessionKey.create({ address: ephemeral.toSuiAddress(), packageId: PACKAGE_ID, ttlMin: 10, signer: ephemeral, suiClient });
+  // Sign the Seal session as the AGENT'S OWN identity — its "badge". The gate
+  // (seal_approve) sees ctx.sender() = this address, so identity allowlists judge
+  // exactly who is knocking. (Bearer-mode files with empty allowlists still open.)
+  const sessionKey = await SessionKey.create({ address: AGENT_ADDRESS, packageId: PACKAGE_ID, ttlMin: 10, signer: keypair, suiClient });
   const tx = new Transaction();
   tx.moveCall({ target: `${PACKAGE_ID}::${MODULE}::seal_approve`, arguments: [tx.pure.vector("u8", fromHex(policyId)), tx.object(policyId), tx.object(CLOCK)] });
   const txBytes = await tx.build({ client: suiClient, onlyTransactionKind: true });

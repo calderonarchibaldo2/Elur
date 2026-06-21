@@ -91,6 +91,25 @@ fn extract_blob_id(s: &str) -> Option<String> {
     Some(after[..q2].to_string())
 }
 
+// List the text documents in a folder (for "give the agent a folder as memory").
+#[tauri::command]
+fn list_dir(path: String) -> Result<Vec<String>, String> {
+    let exts = ["md", "txt", "csv", "tsv", "json", "log", "markdown", "pdf", "docx", "docm", "xlsx", "xlsm", "pptx", "pptm", "rtf", "html", "htm", "yaml", "yml", "xml", "toml", "ini", "tex", "vtt", "srt", "eml"];
+    let mut out: Vec<String> = vec![];
+    for entry in std::fs::read_dir(&path).map_err(|e| e.to_string())? {
+        let e = entry.map_err(|e| e.to_string())?;
+        let p = e.path();
+        if p.is_file() {
+            let ext = p.extension().and_then(|x| x.to_str()).unwrap_or("").to_lowercase();
+            if exts.contains(&ext.as_str()) {
+                out.push(p.to_string_lossy().to_string());
+            }
+        }
+    }
+    out.sort();
+    Ok(out)
+}
+
 #[tauri::command]
 fn walrus_store(b64: String, epochs: u32) -> Result<String, String> {
     let bytes = STANDARD.decode(b64.as_bytes()).map_err(|e| e.to_string())?;
@@ -245,6 +264,7 @@ fn main() {
             delete_path,
             reveal_in_finder,
             zip_path,
+            list_dir,
             walrus_store,
             walrus_read,
             keychain_set,

@@ -178,7 +178,7 @@ $("#q").addEventListener("keydown", e => { if (e.key === "Enter") ask(); });
 $("#teachBtn").onclick = () => { const l=$("#tLabel").value.trim(), t=$("#tText").value.trim(); if(l&&t){$("#tLabel").value="";$("#tText").value="";teach(l,t);} };
 $("#seedBtn").onclick = async () => {
   await teach("budget", "Our maximum acquisition budget is $4.2M — strictly confidential.");
-  await teach("counsel", "Our lead counsel is Maria Restrepo at Lex Andina.");
+  await teach("counsel", "Our lead counsel is Camila Duarte at Lex Andina.");
   setStatus("✓ demo memories loaded — ask the agent, then revoke the budget.");
 };
 $("#resetBtn").onclick = async () => {

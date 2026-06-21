@@ -1,0 +1,180 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<title>Elur — PDF sandbox verification harness</title>
+<style>
+  :root{--ink:#1a2230;--faint:#6b7787;--line:#dfe3ea;--ok:#1d7a4d;--bad:#b3402f;--warn:#9a6a18;--paper:#fbfaf7;--brass:#9a7b3f;}
+  *{box-sizing:border-box}
+  body{margin:0;font:15px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:var(--ink);background:var(--paper);padding:28px 32px 80px;}
+  h1{font-size:22px;margin:0 0 4px} .sub{color:var(--faint);margin:0 0 20px;max-width:760px}
+  .eng{font:12px/1.4 ui-monospace,Menlo,monospace;color:var(--faint);background:#fff;border:1px solid var(--line);border-radius:8px;padding:8px 12px;margin-bottom:22px;white-space:pre-wrap}
+  .block{margin-bottom:34px}
+  .block > h2{font-size:16px;margin:0 0 2px} .block > p{margin:0 0 12px;color:var(--faint);font-size:13.5px}
+  .row{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+  .cell{border:1px solid var(--line);border-radius:10px;background:#fff;overflow:hidden;display:flex;flex-direction:column}
+  .cap{font:12px/1.3 ui-monospace,Menlo,monospace;padding:8px 10px;border-bottom:1px solid var(--line);background:#f4f2ec;display:flex;justify-content:space-between;align-items:center}
+  .cap b{color:var(--ink)} .tag{font-size:10.5px;padding:1px 7px;border-radius:20px;border:1px solid var(--line);color:var(--faint)}
+  .tag.fix{color:var(--brass);border-color:#d8c79e;background:#f8f2e4}
+  iframe{width:100%;height:300px;border:0;background:#eceae3}
+  .ask{padding:9px 10px;border-top:1px solid var(--line);font-size:12.5px;color:var(--faint)}
+  .ask b{color:var(--ink)}
+  .panel{border:1px solid var(--line);border-radius:10px;background:#fff;padding:16px 18px;margin-top:8px}
+  .panel h3{margin:0 0 8px;font-size:14px}
+  ol{margin:6px 0 0;padding-left:20px} li{margin:5px 0}
+  code{font:12px ui-monospace,Menlo,monospace;background:#f4f2ec;padding:1px 5px;border-radius:4px}
+  .verdict{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-top:14px}
+  .vbtn{cursor:pointer;border:1px solid var(--line);border-radius:8px;background:#fff;padding:10px;text-align:center;font-size:12.5px}
+  .vbtn:hover{border-color:var(--brass)} .vbtn .k{font-family:ui-monospace,Menlo,monospace;font-size:11px;color:var(--faint);display:block;margin-bottom:3px}
+  .note{font-size:12.5px;color:var(--warn);margin-top:10px}
+  .legend{font-size:12.5px;color:var(--faint);margin:2px 0 18px}
+  .sentinel{font:12.5px/1.4 ui-monospace,Menlo,monospace;background:#fff;border:1px solid var(--line);border-left:3px solid var(--brass);border-radius:6px;padding:8px 12px;margin-bottom:12px}
+  #blockPdfjs{border:1px solid #d8c79e;background:#fffdf6;border-radius:12px;padding:18px;margin-top:30px}
+</style></head>
+<body>
+<h1>PDF sandbox verification harness</h1>
+<p class="sub">Reproduces Elur's <code>paintContent</code> PDF path exactly — <code>URL.createObjectURL(new Blob([bytes],{type:"application/pdf"}))</code> in an <code>&lt;iframe&gt;</code> — across three <code>sandbox</code> settings, side by side. <b>Open this file inside the Elur app's WebView (or Safari — same WebKit engine).</b> The only question each row answers: does the PDF still render, and does active content stay inert?</p>
+<div class="eng" id="eng">detecting engine…</div>
+
+<p class="legend"><b>Columns:</b> &nbsp; <b>no sandbox</b> = current shipped baseline &nbsp;·&nbsp; <b>sandbox=""</b> = the proposed hardening fix &nbsp;·&nbsp; <b>sandbox="allow-same-origin"</b> = the audit's fallback. &nbsp; A column <b>passes render</b> if you can read the PDF text in it.</p>
+
+<div class="block">
+  <h2>1 · Normal PDF — the render test (THE blocker)</h2>
+  <p>Clean PDF, no scripts. If a column is <b>blank/grey</b>, that sandbox setting breaks rendering in this engine (WebKit bug 118859) and is unusable as-is.</p>
+  <div class="row" id="rowNormal"></div>
+  <div class="ask">Look at all three: <b>which columns show the text?</b> The fix is only viable if <code>sandbox=""</code> renders.</div>
+</div>
+
+<div class="block">
+  <h2>2 · Embedded-JS PDF — the execution test</h2>
+  <p>Carries an <code>OpenAction /JavaScript</code> that fires <code>app.alert('XSS-FIRED…')</code> on open. A safe viewer runs nothing.</p>
+  <div class="row" id="rowJs"></div>
+  <div class="ask"><b>Did any alert/dialog appear when the page loaded?</b> If no dialog popped → JS did not execute (safe). WebKit's native viewer never runs PDF JS; this confirms it.</div>
+</div>
+
+<div class="block">
+  <h2>3 · External-ref PDF — the phone-home test</h2>
+  <p>On open it attempts <code>submitForm</code>, <code>launchURL</code>, and <code>Net.HTTP.request</code> to <code>elur-pdf-probe.example.invalid</code>, plus a clickable URI link.</p>
+  <div class="row" id="rowExt"></div>
+  <div class="ask"><b>Open the Network tab, then reload.</b> Zero requests to <code>elur-pdf-probe.example.invalid</code> = no phone-home (safe). This domain is intentionally unresolvable, so any attempt shows as a failed request.</div>
+</div>
+
+<div class="block" id="blockPdfjs">
+  <h2>4 · pdf.js canvas — THE FIX (what the app now ships)</h2>
+  <p>Same three PDFs, rendered the way <code>paintContent</code> renders them now: pure-JS rasterization to a <code>&lt;canvas&gt;</code>, no native viewer, no <code>sandbox</code> dependency. Expected: <b>all three show their text</b>, <b>no alert fires</b>, and the <b>network sentinel below stays at 0</b>.</p>
+  <div class="sentinel" id="sentinel">network sentinel: <b id="netcount">0</b> outbound request(s) to the probe host — <span id="netverdict">watching…</span></div>
+  <div class="row" id="rowPdfjs"></div>
+  <div class="ask">All three render via pdf.js regardless of engine, no dialog appears, and the sentinel reads <b>0</b> → the fix gives display-only preview with no script execution and no phone-home.</div>
+</div>
+
+<div class="panel">
+  <h3>How to run this (2 minutes)</h3>
+  <ol>
+    <li>Open this <code>.html</code> inside the <b>Elur app</b> (drag into its window / load via a route) so it runs in the <b>real WKWebView</b>. Safari is an acceptable proxy — same engine.</li>
+    <li><b>Row 1:</b> note which of the three columns actually show text. That decides whether <code>sandbox=""</code> is shippable.</li>
+    <li><b>Row 2:</b> confirm no alert dialog appeared on load.</li>
+    <li><b>Row 3:</b> open Web Inspector → Network, reload, filter for <code>probe</code>. Confirm zero outbound attempts.</li>
+    <li>Record the outcome below.</li>
+  </ol>
+  <div class="verdict">
+    <div class="vbtn"><span class="k">sandbox=""</span> renders? ✅ / ❌</div>
+    <div class="vbtn"><span class="k">JS on open</span> inert? ✅ / ❌</div>
+    <div class="vbtn"><span class="k">network</span> silent? ✅ / ❌</div>
+  </div>
+  <p class="note">Heads-up from the research: WebKit historically blanks PDFs inside <code>sandbox</code> iframes (bug 118859) — and <code>allow-same-origin</code> doesn't re-enable them. If Row 1's <code>sandbox=""</code> column is blank, the iframe-sandbox approach is a dead end and the robust fix is to render the inline preview with <b>pdf.js</b> (already vendored for text extraction) to a canvas — that runs no PDF JS and makes no network requests by construction, independent of WebKit quirks.</p>
+</div>
+
+<script>
+const PDFS = {
+  normal: "JVBERi0xLjcKJeLjz9MKMSAwIG9iago8PCAvVHlwZSAvQ2F0YWxvZyAvUGFnZXMgMiAwIFIgPj4KZW5kb2JqCjIgMCBvYmoKPDwgL1R5cGUgL1BhZ2VzIC9LaWRzIFszIDAgUl0gL0NvdW50IDEgPj4KZW5kb2JqCjMgMCBvYmoKPDwgL1R5cGUgL1BhZ2UgL1BhcmVudCAyIDAgUiAvTWVkaWFCb3ggWzAgMCA2MTIgNzkyXSAvQ29udGVudHMgNCAwIFIgL1Jlc291cmNlcyA8PCAvRm9udCA8PCAvRjEgNSAwIFIgPj4gPj4gPj4KZW5kb2JqCjQgMCBvYmoKPDwgL0xlbmd0aCAzMjIgPj4Kc3RyZWFtCkJUCi9GMSAxOCBUZgoxIDAgMCAxIDcyIDcyMCBUbQooTk9STUFMIFBERiAtLSBjb250cm9sIHNhbXBsZSkgVGoKMSAwIDAgMSA3MiA2OTQgVG0KKElmIHlvdSBjYW4gcmVhZCB0aGlzLCB0aGUgUERGIHJlbmRlcmVkLikgVGoKMSAwIDAgMSA3MiA2NjggVG0KKExpbmUgMzogbXVsdGktbGluZSB0ZXh0LCBzdGFuZGFyZCBmb250cy4pIFRqCjEgMCAwIDEgNzIgNjQyIFRtCihMaW5lIDQ6IG5vIEphdmFTY3JpcHQsIG5vIGV4dGVybmFsIHJlZnMuKSBUagoxIDAgMCAxIDcyIDYxNiBUbQooRWx1ciBzYW5kYm94IHRlc3QgLS0gZXhwZWN0ZWQ6IFZJU0lCTEUuKSBUagpFVAoKZW5kc3RyZWFtCmVuZG9iago1IDAgb2JqCjw8IC9UeXBlIC9Gb250IC9TdWJ0eXBlIC9UeXBlMSAvQmFzZUZvbnQgL0hlbHZldGljYSA+PgplbmRvYmoKeHJlZgowIDYKMDAwMDAwMDAwMCA2NTUzNSBmIAowMDAwMDAwMDE1IDAwMDAwIG4gCjAwMDAwMDAwNjQgMDAwMDAgbiAKMDAwMDAwMDEyMSAwMDAwMCBuIAowMDAwMDAwMjQ3IDAwMDAwIG4gCjAwMDAwMDA2MjAgMDAwMDAgbiAKdHJhaWxlcgo8PCAvU2l6ZSA2IC9Sb290IDEgMCBSID4+CnN0YXJ0eHJlZgo2OTAKJSVFT0Y=",
+  js: "JVBERi0xLjcKJeLjz9MKMSAwIG9iago8PCAvVHlwZSAvQ2F0YWxvZyAvUGFnZXMgMiAwIFIgL09wZW5BY3Rpb24gNiAwIFIgPj4KZW5kb2JqCjIgMCBvYmoKPDwgL1R5cGUgL1BhZ2VzIC9LaWRzIFszIDAgUl0gL0NvdW50IDEgPj4KZW5kb2JqCjMgMCBvYmoKPDwgL1R5cGUgL1BhZ2UgL1BhcmVudCAyIDAgUiAvTWVkaWFCb3ggWzAgMCA2MTIgNzkyXSAvQ29udGVudHMgNCAwIFIgL1Jlc291cmNlcyA8PCAvRm9udCA8PCAvRjEgNSAwIFIgPj4gPj4gPj4KZW5kb2JqCjQgMCBvYmoKPDwgL0xlbmd0aCAzMTMgPj4Kc3RyZWFtCkJUCi9GMSAxOCBUZgoxIDAgMCAxIDcyIDcyMCBUbQooRU1CRURERUQtSlMgUERGKSBUagoxIDAgMCAxIDcyIDY5NCBUbQooVGhpcyBmaWxlIGNhcnJpZXMgYW4gT3BlbkFjdGlvbiAvSmF2YVNjcmlwdC4pIFRqCjEgMCAwIDEgNzIgNjY4IFRtCihJZiB0aGUgdmlld2VyIGlzIFNBRkU6IHlvdSBzZWUgb25seSB0aGlzIHRleHQsKSBUagoxIDAgMCAxIDcyIDY0MiBUbQooYW5kIE5PIGFsZXJ0L2RpYWxvZyBhcHBlYXJzLikgVGoKMSAwIDAgMSA3MiA2MTYgVG0KKElmIEpTIFJVTlMgKHVuc2FmZSk6IGFuIGFsZXJ0IGZpcmVzIG9uIG9wZW4uKSBUagpFVAoKZW5kc3RyZWFtCmVuZG9iago1IDAgb2JqCjw8IC9UeXBlIC9Gb250IC9TdWJ0eXBlIC9UeXBlMSAvQmFzZUZvbnQgL0hlbHZldGljYSA+PgplbmRvYmoKNiAwIG9iago8PCAvVHlwZSAvQWN0aW9uIC9TIC9KYXZhU2NyaXB0IC9KUyAoYXBwLmFsZXJ0KCdYU1MtRklSRUQ6IGVtYmVkZGVkIFBERiBKYXZhU2NyaXB0IGV4ZWN1dGVkJyk7IHRoaXMuaW5mby50aXRsZT0nUFdORUQnOykgPj4KZW5kb2JqCnhyZWYKMCA3CjAwMDAwMDAwMDAgNjU1MzUgZiAKMDAwMDAwMDAxNSAwMDAwMCBuIAowMDAwMDAwMDgyIDAwMDAwIG4gCjAwMDAwMDAxMzkgMDAwMDAgbiAKMDAwMDAwMDI2NSAwMDAwMCBuIAowMDAwMDAwNjI5IDAwMDAwIG4gCjAwMDAwMDA2OTkgMDAwMDAgbiAKdHJhaWxlcgo8PCAvU2l6ZSA3IC9Sb290IDEgMCBSID4+CnN0YXJ0eHJlZgo4MzgKJSVFT0Y=",
+  ext: "JVBERi0xLjcKJeLjz9MKMSAwIG9iago8PCAvVHlwZSAvQ2F0YWxvZyAvUGFnZXMgMiAwIFIgL09wZW5BY3Rpb24gNiAwIFIgPj4KZW5kb2JqCjIgMCBvYmoKPDwgL1R5cGUgL1BhZ2VzIC9LaWRzIFszIDAgUl0gL0NvdW50IDEgPj4KZW5kb2JqCjMgMCBvYmoKPDwgL1R5cGUgL1BhZ2UgL1BhcmVudCAyIDAgUiAvTWVkaWFCb3ggWzAgMCA2MTIgNzkyXSAvQ29udGVudHMgNCAwIFIgL0Fubm90cyBbNyAwIFJdIC9SZXNvdXJjZXMgPDwgL0ZvbnQgPDwgL0YxIDUgMCBSID4+ID4+ID4+CmVuZG9iago0IDAgb2JqCjw8IC9MZW5ndGggMzAwID4+CnN0cmVhbQpCVAovRjEgMTggVGYKMSAwIDAgMSA3MiA3MjAgVG0KKEVYVEVSTkFMLVJFRiBQREYpIFRqCjEgMCAwIDEgNzIgNjk0IFRtCihPbiBvcGVuIHRoaXMgdHJpZXMgdG8gcGhvbmUgaG9tZSB0bzopIFRqCjEgMCAwIDEgNzIgNjY4IFRtCiggIGVsdXItcGRmLXByb2JlLmV4YW1wbGUuaW52YWxpZCkgVGoKMSAwIDAgMSA3MiA2NDIgVG0KKHZpYSBzdWJtaXRGb3JtIC8gbGF1bmNoVVJMIC8gTmV0LkhUVFAuKSBUagoxIDAgMCAxIDcyIDYxNiBUbQooU0FGRSB2aWV3ZXI6IFpFUk8gcmVxdWVzdHMgaW4gTmV0d29yayB0YWIuKSBUagpFVAoKZW5kc3RyZWFtCmVuZG9iago1IDAgb2JqCjw8IC9UeXBlIC9Gb250IC9TdWJ0eXBlIC9UeXBlMSAvQmFzZUZvbnQgL0hlbHZldGljYSA+PgplbmRvYmoKNiAwIG9iago8PCAvVHlwZSAvQWN0aW9uIC9TIC9KYXZhU2NyaXB0IC9KUyAodHJ5e3RoaXMuc3VibWl0Rm9ybSgnaHR0cHM6Ly9lbHVyLXBkZi1wcm9iZS5leGFtcGxlLmludmFsaWQvc3VibWl0Jyk7fWNhdGNoKGUpe307IHRyeXthcHAubGF1bmNoVVJMKCdodHRwczovL2VsdXItcGRmLXByb2JlLmV4YW1wbGUuaW52YWxpZC9sYXVuY2gnKTt9Y2F0Y2goZSl7fTsgdHJ5e05ldC5IVFRQLnJlcXVlc3Qoe2NWZXJiOidHRVQnLGNVUkw6J2h0dHBzOi8vZWx1ci1wZGYtcHJvYmUuZXhhbXBsZS5pbnZhbGlkL25ldCd9KTt9Y2F0Y2goZSl7fSkgPj4KZW5kb2JqCjcgMCBvYmoKPDwgL1R5cGUgL0Fubm90IC9TdWJ0eXBlIC9MaW5rIC9SZWN0IFs3MiA2MDAgNDAwIDYyMF0gL0EgPDwgL1R5cGUgL0FjdGlvbiAvUyAvVVJJIC9VUkkgKGh0dHBzOi8vZWx1ci1wZGYtcHJvYmUuZXhhbXBsZS5pbnZhbGlkL2NsaWNrZWQpID4+ID4+CmVuZG9iagp4cmVmCjAgOAowMDAwMDAwMDAwIDY1NTM1IGYgCjAwMDAwMDAwMTUgMDAwMDAgbiAKMDAwMDAwMDA4MiAwMDAwMCBuIAowMDAwMDAwMTM5IDAwMDAwIG4gCjAwMDAwMDAyODEgMDAwMDAgbiAKMDAwMDAwMDYzMiAwMDAwMCBuIAowMDAwMDAwNzAyIDAwMDAwIG4gCjAwMDAwMDEwMTggMDAwMDAgbiAKdHJhaWxlcgo8PCAvU2l6ZSA4IC9Sb290IDEgMCBSID4+CnN0YXJ0eHJlZgoxMTc1CiUlRU9G"
+};
+function b64ToBlobUrl(b64){
+  const bin = atob(b64); const u = new Uint8Array(bin.length);
+  for(let i=0;i<bin.length;i++) u[i]=bin.charCodeAt(i);
+  return URL.createObjectURL(new Blob([u],{type:"application/pdf"}));
+}
+const VARIANTS = [
+  {label:'no sandbox', tag:'baseline', attr:null},
+  {label:'sandbox=""', tag:'the fix', fix:true, attr:''},
+  {label:'sandbox="allow-same-origin"', tag:'fallback', attr:'allow-same-origin'},
+];
+function buildRow(rowId, b64){
+  const row = document.getElementById(rowId);
+  const url = b64ToBlobUrl(b64);
+  for(const v of VARIANTS){
+    const cell = document.createElement('div'); cell.className='cell';
+    const cap = document.createElement('div'); cap.className='cap';
+    cap.innerHTML = `<b>${v.label}</b><span class="tag ${v.fix?'fix':''}">${v.tag}</span>`;
+    const f = document.createElement('iframe');
+    if(v.attr !== null){ f.setAttribute('sandbox', v.attr); f.setAttribute('referrerpolicy','no-referrer'); }
+    f.src = url;
+    const ask = document.createElement('div'); ask.className='ask';
+    ask.innerHTML = 'renders here? <b>look ↑</b>';
+    cell.appendChild(cap); cell.appendChild(f); cell.appendChild(ask);
+    row.appendChild(cell);
+  }
+}
+buildRow('rowNormal', PDFS.normal);
+buildRow('rowJs', PDFS.js);
+buildRow('rowExt', PDFS.ext);
+// engine fingerprint
+const ua = navigator.userAgent;
+const isWK = /AppleWebKit/.test(ua) && !/Chrome|Chromium|Edg/.test(ua);
+document.getElementById('eng').textContent =
+  'Engine: ' + (isWK ? 'WebKit (Safari/WKWebView) — this is the engine Elur ships on ✓' : 'NOT WebKit — results will not match the Elur app. Re-open in the app or Safari.') +
+  '\nUA: ' + ua;
+
+// ---- pdf.js path (block 4): network sentinel + canvas render ----
+const PROBE = "elur-pdf-probe.example.invalid";
+let netHits = 0;
+function flagNet(u){
+  try{ if(String(u).includes(PROBE)){ netHits++;
+    document.getElementById('netcount').textContent = netHits;
+    document.getElementById('netverdict').innerHTML = '<b style="color:var(--bad)">PHONE-HOME DETECTED</b>';
+  }}catch(e){}
+}
+const _fetch = window.fetch; window.fetch = function(u,...a){ flagNet(u && u.url || u); return _fetch.apply(this,[u,...a]); };
+const _open = XMLHttpRequest.prototype.open; XMLHttpRequest.prototype.open = function(m,u,...a){ flagNet(u); return _open.apply(this,[m,u,...a]); };
+
+function pdfjsCell(rowId, b64, label){
+  const row = document.getElementById(rowId);
+  const cell = document.createElement('div'); cell.className='cell';
+  const cap = document.createElement('div'); cap.className='cap';
+  cap.innerHTML = `<b>${label}</b><span class="tag fix">pdf.js</span>`;
+  const host = document.createElement('div'); host.style.cssText='padding:8px;background:#eceae3;height:300px;overflow:auto';
+  const ask = document.createElement('div'); ask.className='ask'; ask.innerHTML='renders + inert? <b>look ↑</b>';
+  cell.appendChild(cap); cell.appendChild(host); cell.appendChild(ask); row.appendChild(cell);
+  return host;
+}
+function b64ToBytes(b64){ const bin=atob(b64); const u=new Uint8Array(bin.length); for(let i=0;i<bin.length;i++)u[i]=bin.charCodeAt(i); return u; }
+async function renderPdfjs(host, bytes){
+  try{
+    const pdf = await window.pdfjsLib.getDocument({ data: bytes, isEvalSupported:false, disableAutoFetch:true, disableStream:true }).promise;
+    for(let i=1;i<=pdf.numPages;i++){
+      const page = await pdf.getPage(i);
+      const scale = (host.clientWidth-16) / page.getViewport({scale:1}).width;
+      const vp = page.getViewport({ scale });
+      const c = document.createElement('canvas'); c.width=vp.width; c.height=vp.height;
+      c.style.cssText='width:100%;height:auto;display:block;background:#fff;box-shadow:0 1px 6px rgba(0,0,0,.15);border-radius:4px';
+      host.appendChild(c);
+      await page.render({ canvasContext:c.getContext('2d'), viewport:vp }).promise;
+    }
+  }catch(e){ host.innerHTML = '<p style="color:#b3402f;font-size:12px;padding:8px">pdf.js failed: '+e.message+'</p>'; }
+}
+function startPdfjs(){
+  if(!window.pdfjsLib){ document.getElementById('netverdict').textContent='pdf.js did not load (offline?)'; return; }
+  try{ window.pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js'; }catch(e){}
+  const h1=pdfjsCell('rowPdfjs',PDFS.normal,'normal');
+  const h2=pdfjsCell('rowPdfjs',PDFS.js,'embedded-js');
+  const h3=pdfjsCell('rowPdfjs',PDFS.ext,'external-ref');
+  renderPdfjs(h1,b64ToBytes(PDFS.normal));
+  renderPdfjs(h2,b64ToBytes(PDFS.js));
+  renderPdfjs(h3,b64ToBytes(PDFS.ext)).then(()=>{
+    setTimeout(()=>{ if(netHits===0) document.getElementById('netverdict').innerHTML='<b style="color:var(--ok)">SILENT — no phone-home ✓</b>'; }, 1500);
+  });
+}
+</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"
+        onload="startPdfjs()"
+        onerror="document.getElementById('netverdict').textContent='pdf.js CDN blocked — run inside the app where pdf.js is vendored'"></script>
+</body></html>

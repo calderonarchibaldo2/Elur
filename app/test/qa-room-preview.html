@@ -1,0 +1,78 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8">
+<title>Elur — Q&A room (design preview)</title>
+<link rel="stylesheet" href="../src/style.css">
+<style>body{padding-left:208px} .previewnote{position:fixed;right:14px;bottom:12px;font:11px/1.4 var(--mono,monospace);color:var(--muted);background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:6px 10px;z-index:99}</style>
+</head><body>
+<div class="topbar">
+  <div class="logo"><span>ELUR</span></div>
+  <div class="tabs">
+      <div class="tab soon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 3v9l6.4 6.3"/></svg>Overview<span class="soonpill">SOON</span></div>
+      <div class="tab" id="tabOpen"><svg viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 018 0"/></svg>Open</div>
+      <div class="tab" id="tabShare"><svg viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 018 0v3"/><circle cx="12" cy="15.5" r="1.3"/></svg>Encrypt</div>
+      <div class="tab" id="tabAgent"><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.2"/><path d="M3.5 19c.6-3.2 2.8-5 5.5-5s4.9 1.8 5.5 5"/><circle cx="17" cy="9" r="2.4"/><path d="M15.5 14.3c2.3.2 4 1.7 4.7 4.2"/></svg>Access control</div>
+      <div class="tab preview" id="tabRequests"><svg viewBox="0 0 24 24"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4.5V3h6v1.5M8.5 10l1.5 1.5L13 8.5M8.5 15.5l1.5 1.5 3-3"/></svg>Requests<span class="soonpill prev">PREVIEW</span></div>
+      <div class="tab" id="tabRoom"><svg viewBox="0 0 24 24"><path d="M3 9l9-5 9 5v10a1 1 0 01-1 1H4a1 1 0 01-1-1z"/><path d="M9 21V12h6v9"/></svg>Deal room</div>
+      <div class="tab preview on" id="tabQA"><svg viewBox="0 0 24 24"><path d="M21 12a8 8 0 01-8 8H4l2.5-3A8 8 0 1121 12z"/><path d="M9 11h6M9 14h4"/></svg>Q&amp;A<span class="soonpill prev">PREVIEW</span></div>
+      <div class="tab" id="tabActivity"><svg viewBox="0 0 24 24"><path d="M3 12h4l3-8 4 16 3-8h4"/></svg>Activity</div>
+    </div>
+    </div>
+  <span class="spacer"></span>
+  <div class="side-pills"><span class="pill">Sui testnet</span></div>
+</div>
+<div class="wrap">
+<!-- Q&A (governed deal conversation, same gate as the documents) — DESIGNED PREVIEW -->
+    <div id="paneQA">
+      <div class="roomhead">
+        <div class="lab">The deal's nervous system · governed Q&amp;A</div>
+        <h1>Ask in the room, not over email.</h1>
+        <p class="sub">Questions and answers that live behind the same gate as the documents — the same named identities, the same on-chain audit trail, scoped to exactly who should see them. Revoke the deal and the conversation seals with it.</p>
+      </div>
+
+      <div class="prevbanner">
+        <span class="prevtag">PREVIEW · NOT LIVE YET</span>
+        <span>Fully designed; the live version rides an SDK that hasn't caught up to our stack yet. The honest reason — and the spike that proves it works — is below.</span>
+      </div>
+
+      <div class="card pad">
+        <div class="qahead">
+          <div class="lab" style="margin:0">Thread · Project Newport</div>
+          <span class="qascope">🔒 clean team · Legal + Financial · 3 members · seals on revoke</span>
+        </div>
+        <div class="qathread" id="qaThread"></div>
+        <div class="qacompose">
+          <input class="inp" id="qaInput" placeholder="Ask the room…" />
+          <button class="btn primary" id="qaSend">Send</button>
+        </div>
+        <div class="status" id="qaMsg"></div>
+      </div>
+
+      <div class="qaprops">
+        <div class="qaprop"><b>Same gate</b><span>The conversation is keyed by the same Seal policy as the files. No second access system to manage.</span></div>
+        <div class="qaprop"><b>Named identities</b><span>Every message is signed by the same on-chain identity that opens the documents — never anonymous, never hex.</span></div>
+        <div class="qaprop"><b>Revoke → it seals</b><span>Remove a party and they lose the thread's history, not just new messages. The deal closes, the talk closes.</span></div>
+      </div>
+
+      <div class="whypanel">
+        <div class="whyhead"><span class="whydot"></span> Why this room isn't switched on yet</div>
+        <p>Governed Q&amp;A rides <b>Sui Stack Messaging</b> — Mysten's own SDK — so the conversation inherits the very same key servers, identities and audit trail as your documents instead of bolting on a second system. The catch is purely timing: that SDK currently targets an <b>earlier generation of the stack (Sui 1.45 / Seal 0.9.6)</b>, while Elur already runs the <b>current generation (Sui 2.x / Seal 1.1.x)</b>. Bridging two generations means dependency gymnastics — a forced Move Registry override — that we won't bake into a product people trust with deal documents.</p>
+        <p>So we did the honest thing: <b>built a working spike</b> that proves the design end-to-end, <b>reported the version gap upstream</b> to the SDK team, and we'll adopt it cleanly the moment it catches up — rather than ship a hack. This isn't a feature we couldn't build; it's one we're sequencing behind a dependency and our audit. This is the first build of Elur, and we take on no clients until that audit lands anyway.</p>
+        <details class="whytech">
+          <summary>The technical detail (for the curious)</summary>
+          <p>The spike runs two custom <code>Ed25519</code> identities with a gasless reader and exercises the full path: send, receive, and the removal-semantics test — when a member is removed, do they lose thread <b>history</b>? They do, which is exactly the property we want: <i>revoke the deal, the conversation seals.</i> The blocker was the generation mismatch: the SDK needed a Move Registry (MVR) override to resolve against our packages even though <code>packageConfig</code> shouldn't have required it. Payloads are tiny next to documents, so messaging is a natural fit once the versions align — same token = identity + audit, smaller blobs.</p>
+        </details>
+      </div>
+    </div>
+</div>
+<div class="previewnote">static design preview · real style.css · thread + composer live</div>
+<script>
+const msgs=[
+ {who:"Camila Duarte",role:"buyer's counsel",side:"in",t:"09:14",body:"Can you confirm the Q3 revenue recognition in <b>Financial / 2024-Q3.xlsx</b> — is the $4.2M deferred or booked?"},
+ {who:"Margaux Lefèvre",role:"sell-side advisor",side:"out",t:"09:21",body:"Booked. See note 4 — only the $0.8M tail is deferred. The recognition memo is in <b>Legal / rev-rec-policy.pdf</b>, just granted to your team."},
+ {who:"Nikos Andreou",role:"Aegis Audit",side:"in",t:"09:33",body:"Confirming scope: the ledger shows this thread is gated to the clean team — buyer-side corp dev can't see it. That's intended for the financials, correct?"},
+ {who:"Margaux Lefèvre",role:"sell-side advisor",side:"out",t:"09:35",body:"Correct. Financials stay clean-team only until exclusivity. The thread seals to anyone removed."},
+];
+const sys=`<div class="qasys">🔒 Gated to Legal + Financial clean team · every message signed on-chain · sealed on revoke</div>`;
+document.getElementById("qaThread").innerHTML=sys+msgs.map(m=>{const color=m.side==="out"?"var(--brass)":"var(--ink)";return `<div class="qamsg ${m.side}"><div class="pavatar qaav" style="background:${color}">${m.who[0]}</div><div class="qabubble"><div class="qameta"><b>${m.who}</b> <span class="qarole">${m.role}</span> <span class="qatime">${m.t}</span></div><div class="qabody">${m.body}</div></div></div>`}).join("");
+document.getElementById("qaSend").onclick=()=>{const v=(document.getElementById("qaInput").value||"").trim();document.getElementById("qaMsg").innerHTML=`<span class="prevnote">Preview — in the shipped version this posts to the deal's gated thread over Sui Stack Messaging: signed by your on-chain identity, visible only to the clean team, and sealed if you're ever removed. It's switched off until that SDK reaches our stack generation — the honest reason is below.</span>`;if(v)document.getElementById("qaInput").value="";};
+</script>
+</body></html>

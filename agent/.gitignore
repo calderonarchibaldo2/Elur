@@ -3,3 +3,4 @@ node_modules/
 .agent-key.json
 .memories.json
 *.log
+counterparty-key.json
