@@ -41,7 +41,7 @@
       <div class="tab on" id="tabOpen"><svg viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 018 0"/></svg>Open</div>
       <div class="tab" id="tabShare"><svg viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 018 0v3"/><circle cx="12" cy="15.5" r="1.3"/></svg>Encrypt</div>
       <div class="tab" id="tabAgent"><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.2"/><path d="M3.5 19c.6-3.2 2.8-5 5.5-5s4.9 1.8 5.5 5"/><circle cx="17" cy="9" r="2.4"/><path d="M15.5 14.3c2.3.2 4 1.7 4.7 4.2"/></svg>Access control</div>
-      <div class="tab" id="tabRequests"><svg viewBox="0 0 24 24"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4.5V3h6v1.5M8.5 10l1.5 1.5L13 8.5M8.5 15.5l1.5 1.5 3-3"/></svg>Requests</div>
+      <div class="tab preview" id="tabRequests"><svg viewBox="0 0 24 24"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4.5V3h6v1.5M8.5 10l1.5 1.5L13 8.5M8.5 15.5l1.5 1.5 3-3"/></svg>Requests<span class="soonpill prev">PREVIEW</span></div>
       <div class="tab" id="tabRoom"><svg viewBox="0 0 24 24"><path d="M4 5a1 1 0 011-1h4l2 2h8a1 1 0 011 1v3H4z"/><path d="M4 9h17v9a1 1 0 01-1 1H5a1 1 0 01-1-1z"/></svg>Documents</div>
       <div class="tab preview" id="tabQA"><svg viewBox="0 0 24 24"><path d="M21 12a8 8 0 01-8 8H4l2.5-3A8 8 0 1121 12z"/><path d="M9 11h6M9 14h4"/></svg>Q&amp;A<span class="soonpill prev">PREVIEW</span></div>
       <div class="tab" id="tabActivity"><svg viewBox="0 0 24 24"><path d="M3 12h4l3-8 4 16 3-8h4"/></svg>Activity</div>
@@ -111,11 +111,9 @@
               <option value="local">as a sealed file (you send it)</option>
             </select>
           </label>
+          <label class="muted small" style="display:flex;align-items:center;gap:6px" title="Seal the next added document as view-only — watermarked with the viewer's identity, can't be exported"><input type="checkbox" id="roomViewOnly" /> view-only</label>
           <span class="rtsp"></span>
           <button class="btn ghost" id="roomLoad">Open a shared room…</button>
-          <label class="muted small" style="display:flex;align-items:center;gap:6px">view as
-            <select id="roomViewAs" class="inp" style="font-size:13px;padding:6px 8px;min-width:140px"></select>
-          </label>
         </div>
         <div class="muted small" id="roomMeta" style="margin-bottom:12px"></div>
         <div id="roomList"><p class="muted small">No documents loaded. Click “Open a shared room…” and choose a manifest a sender exported for you.</p></div>
@@ -130,6 +128,11 @@
         <div class="lab">Two-way document requests</div>
         <h1>Ask, and be asked.</h1>
         <p class="sub">The deal's request list, both directions: documents you need from a counterparty, and documents they need from you — each with a deadline and a review window. Fulfilling a request grants exactly that access, set to expire when the window closes.</p>
+      </div>
+
+      <div class="prevbanner">
+        <span class="prevtag">PREVIEW · PARTLY LIVE</span>
+        <span><b>Fulfilling a request is real</b> — it's a live on-chain grant scoped to the review window. What's <b>staged</b> is the cross-party flow: sending a request to the other side's app and receiving their replies rides <b>Sui Stack Messaging</b> (pending, same dependency as Q&amp;A), so here the counterparty's side is demo data. The grant is real; the delivery isn't live yet.</span>
       </div>
 
       <div class="card pad">
@@ -190,7 +193,7 @@
       <div class="whypanel">
         <div class="whyhead"><span class="whydot"></span> Why this room isn't switched on yet</div>
         <p>Governed Q&amp;A rides <b>Sui Stack Messaging</b> — Mysten's own SDK — so the conversation inherits the very same key servers, identities and audit trail as your documents instead of bolting on a second system. The catch is purely timing: that SDK currently targets an <b>earlier generation of the stack (Sui 1.45 / Seal 0.9.6)</b>, while Elur already runs the <b>current generation (Sui 2.x / Seal 1.1.x)</b>. Bridging two generations means dependency gymnastics — a forced Move Registry override — that we won't bake into a product people trust with deal documents.</p>
-        <p>So we did the honest thing: <b>built a working spike</b> that proves the design end-to-end, <b>reported the version gap upstream</b> to the SDK team, and we'll adopt it cleanly the moment it catches up — rather than ship a hack. This isn't a feature we couldn't build; it's one we're sequencing behind a dependency and our audit. This is the first build of Elur, and we take on no clients until that audit lands anyway.</p>
+        <p>So we did the honest thing: <b>built a working spike</b> that proves the design end-to-end. The SDK's migration to the current generation is already underway upstream — we'll adopt it the moment it ships, rather than bolt on a hack now. This isn't a feature we couldn't build; it's one we're sequencing behind a dependency and our audit. This is the first build of Elur, and we take on no clients until that audit lands anyway.</p>
         <details class="whytech">
           <summary>The technical detail (for the curious)</summary>
           <p>The spike runs two custom <code>Ed25519</code> identities with a gasless reader and exercises the full path: send, receive, and the removal-semantics test — when a member is removed, do they lose thread <b>history</b>? They do, which is exactly the property we want: <i>revoke the deal, the conversation seals.</i> The blocker was the generation mismatch: the SDK needed a Move Registry (MVR) override to resolve against our packages even though <code>packageConfig</code> shouldn't have required it. Payloads are tiny next to documents, so messaging is a natural fit once the versions align — same token = identity + audit, smaller blobs.</p>
@@ -334,6 +337,13 @@
           <div class="lab"><span class="num">1</span> Who holds a key</div>
           <div class="card pad">
             <p class="muted small" style="margin-top:0">Everyone who can open your documents — people and agents. You always know who; the public ledger sees only addresses. Your own access never depends on this list.</p>
+            <details class="whytech" style="margin:6px 0 12px">
+              <summary class="muted small" style="cursor:pointer">Why an address today — and one-click in-app invites next</summary>
+              <div style="font-size:13px;color:var(--muted);line-height:1.6;margin-top:8px">
+                <p style="margin:0 0 8px">An Elur identity is a <b>Sui address</b>, derived from each person's own Google sign-in. The salt that produces it lives behind <i>their</i> login — so <b>no one, not even us, can turn an email into an address without that person signing in first</b>. That's a privacy guarantee, not a shortcut we skipped.</p>
+                <p style="margin:0">The friendly version we're building — <b>invite a counterparty from inside the deal and have identities exchanged automatically: in-app, no address-copying, no links, no email</b> — rides <b>Sui Stack Messaging</b>, which today targets an earlier generation of the stack (Sui 1.45 / Seal 0.9.6) than Elur runs (Sui 2.x / Seal 1.1.x). We're sequencing it behind that dependency rather than shipping a workaround we'd have to unwind. Until it lands: the other side copies their address from their Elur in one click, or use <i>generate a test identity</i> below to try the whole flow yourself.</p>
+              </div>
+            </details>
             <div style="display:flex;gap:8px;margin:12px 0 6px;flex-wrap:wrap">
               <input class="inp" id="ppAddr" placeholder="0x… identity address — they copy it from their own Elur" style="flex:2;min-width:220px;font-size:13px" />
               <input class="inp" id="ppName" placeholder="name it — “Camila”, “Buyer's agent”…" style="flex:1.4;min-width:170px;font-size:13.5px" />

@@ -1,22 +1,38 @@
 [
   {
-    "label": "term sheet",
-    "blobId": "8JuhFnQh_GCrwadb5IVgytCQz4fQYY2hjS-nZc80F9Q"
+    "label": "Term Sheet",
+    "blobId": "HCjfF3MKP8WAUzu9RMo3adzGIy3rtO1dYLQrII4S6qQ",
+    "policyId": "0x97791d3170d7f894951903fb09e346b42b98f7783e526fe111d1a43f2db5d564",
+    "folder": "Corporate"
   },
   {
-    "label": "confidential budget",
-    "blobId": "7OcaxSeL3t977m3DDp021bqQWdOOi6CNnEdGVo08jrc"
+    "label": "Board Resolution",
+    "blobId": "6am577nKNTz45kgzIkxEIZAzZ87IGG3KLWWQekaaXV4",
+    "policyId": "0xa969f104d1ced498677f2c8e17196a6c22e92c24a0b5e10e5b33f6e188a10628",
+    "folder": "Corporate"
   },
   {
-    "label": "due diligence summary",
-    "blobId": "W4nZOGt0w6rFP-lvkI1Hp-rT-XqfD3o7dwwqpJdjeBM"
+    "label": "Due Diligence Summary",
+    "blobId": "lbE_MfAtLuPE0sjzT25X-QliPrrXHm-Q4DVl8T1v82M",
+    "policyId": "0x01c9aa0967937dce804eaf9200cd4b12cfc1a963fc28158c75a0be697039813a",
+    "folder": "Financial"
   },
   {
-    "label": "legal counsel",
-    "blobId": "Qh5PBW99K493kHQnwjz7_1A1rpnxNBFsKOUa8HB_aoE"
+    "label": "Deal Contacts & Counsel",
+    "blobId": "cuKC39fmyXXGhwWUN0g67taQHWpHxN_C-jLxkk31Tyg",
+    "policyId": "0x4343b44c6f97a2bbf21e86dd20c2d5156b78c45a39a4845f9e9bc6595cfcee08",
+    "folder": "Legal"
   },
   {
-    "label": "board resolution",
-    "blobId": "wlNEyB5Fq6T-MEUi036rqimzPH9lGkZYu_y_cOZZ9-A"
+    "label": "Privileged Legal Opinion",
+    "blobId": "tZdXTcvYNnE75Tl8Xgb4Kb_lMWPX0yQEr3wb02-fJNM",
+    "policyId": "0x4f645c4a1e5743aaa125ba812aa649c9265b7d12fcfb89e347df2081f7f90cd3",
+    "folder": "Legal"
+  },
+  {
+    "label": "Confidential Budget",
+    "blobId": "ZhAGnUsaC-Mm1ItIswLVU80NFaYdrPwWuu9JmUN3QdA",
+    "policyId": "0x0d9e79683c6af00cfd8ddd8f9bfba143ca3b43e4fab67040c094c78b518d1d9d",
+    "folder": "Financial"
   }
 ]

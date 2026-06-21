@@ -665,10 +665,11 @@ let _roomStaged = false;
 function stageDefaultRoom() {
   if (roomManifest || _roomStaged) return;
   if (!agentMems.length) return;
+  tagDemoFolders();
   roomManifest = agentMems.map(({ label, folder, blobId, policyId, kind, name, ext }) => ({ label, folder: folder || null, blobId, policyId, kind, name, ext }));
-  roomViewer = (typeof DEMO_CAMILA !== "undefined" && DEMO_CAMILA in peopleBook) ? DEMO_CAMILA : "me";
+  roomViewer = "me"; // single-user demo — always the signed-in owner's view (no "view as")
   _roomStaged = true;
-  if ($("#roomMeta")) $("#roomMeta").textContent = `Demo deal room · ${roomManifest.length} documents · viewing as a recipient`;
+  if ($("#roomMeta")) $("#roomMeta").textContent = `Demo deal room · ${roomManifest.length} documents`;
 }
 
 function roomMyAddr() {
@@ -854,7 +855,7 @@ async function roomRecallFile(blobId, policyId) {
   const sessionKey = await SessionKey.create({ address: ephemeral.toSuiAddress(), packageId: SEAL_PKG, ttlMin: 10, signer: ephemeral, suiClient });
   const ck = await newSeal().decrypt({ data: ub64(pkg.ek), sessionKey, txBytes: await approvalTxBytes(pkg.policyId || policyId) });
   const { name, bytes } = await aesDecrypt(ub64(pkg.iv), ub64(pkg.ct), new Uint8Array(ck));
-  return { name, bytes, ext: (pkg.ext || (name.match(/\.([^.]+)$/) || [])[1] || "").toLowerCase() };
+  return { name, bytes, ext: (pkg.ext || (name.match(/\.([^.]+)$/) || [])[1] || "").toLowerCase(), exportable: pkg.exportable !== false };
 }
 
 async function roomOpen(blobId, policyId, label) {
@@ -870,7 +871,7 @@ async function roomOpen(blobId, policyId, label) {
     try {
       const file = await roomRecallFile(blobId, policyId);
       $("#roomStatus").textContent = "";
-      renderDocView(label, { bytes: file.bytes, name: file.name || doc.name || label, ext: file.ext || doc.ext });
+      renderDocView(label, { bytes: file.bytes, name: file.name || doc.name || label, ext: file.ext || doc.ext, exportable: file.exportable });
     } catch (e) { $("#roomStatus").textContent = "🔒 The gate denied this open — you don't currently have access."; roomOpenBlob = null; }
     return;
   }
@@ -903,7 +904,10 @@ function renderDocView(label, body) {
   const cmts = roomComments[key] || [];
   const thread = cmts.length ? cmts.map((c) => `<div class="cmt ${c.who === "You" ? "mine" : ""}"><div class="cmtwho">${escapeHtml(c.who)} <span class="cmtt">${ovTime(c.at)}</span></div><div class="cmtbody">${escapeHtml(c.text)}</div></div>`).join("") : `<p class="muted small" style="margin:4px 0">No comments yet — start the thread.</p>`;
   const isFile = !!body.bytes;
-  const dl = isFile ? `<button class="mini" id="docDownload">Download</button>` : "";
+  const viewOnly = isFile && body.exportable === false;
+  const dl = isFile ? (`<button class="mini" id="docExpand">⛶ Expand</button>` + (viewOnly
+    ? `<span style="font:600 11px 'JetBrains Mono',ui-monospace,monospace;color:var(--bad);align-self:center;margin-left:4px">🔒 VIEW ONLY</span>`
+    : `<button class="mini" id="docDownload" title="Downloads the sealed .elur — still governed: it re-opens only through the gate, and revoke still kills it">Download .elur</button>`)) : "";
   $("#roomDoc").innerHTML = `<div class="card pad" style="margin-top:14px">
     <div class="dochead"><div class="lab" style="margin:0">${escapeHtml(label)}</div><div style="display:flex;gap:6px">${dl}<button class="mini" id="docClose">Close</button></div></div>
     <div id="docBody" class="docbody"></div>
@@ -916,7 +920,25 @@ function renderDocView(label, body) {
   const bodyEl = $("#docBody");
   if (isFile) {
     paintContent(bodyEl, body.name || label, body.bytes, body.ext);
-    $("#docDownload") && ($("#docDownload").onclick = () => saveBytes(body.name || (label + (body.ext ? "." + body.ext : "")), body.bytes));
+    if (viewOnly) {
+      // View-only: stamp every view with the signed-in identity (leak tracing) + lock export.
+      const when = new Date().toLocaleString([], { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
+      const viewer = (typeof zkSigner !== "undefined" && zkSigner && zkSigner.email) ? zkSigner.email : (roomMyAddr() ? roomMyAddr().slice(0, 12) + "…" : "this device");
+      const wm = `ELUR · ${viewer} · ${when}`;
+      applyWatermark(bodyEl, wm); lockDown(bodyEl);
+      $("#docExpand").onclick = () => openFullscreen(body.name || label, body.bytes, body.ext, { viewOnly: true, watermark: wm });
+    } else {
+      $("#docExpand").onclick = () => openFullscreen(body.name || label, body.bytes, body.ext, {});
+      // Download yields the SEALED .elur (never plaintext) — a downloaded copy stays governed.
+      $("#docDownload") && ($("#docDownload").onclick = async () => {
+        try {
+          $("#roomStatus").textContent = "Preparing the sealed file…";
+          const sealed = ub64(await platform.walrusRead(roomOpenBlob));
+          await saveBytes(label.replace(/[^\w.-]+/g, "_") + ".elur", sealed);
+          $("#roomStatus").textContent = "";
+        } catch (e) { $("#roomStatus").textContent = "❌ " + ((e && e.message) || e); }
+      });
+    }
   } else {
     const p = document.createElement("pre"); p.className = "rmpre"; p.textContent = body.text; bodyEl.appendChild(p);
   }
@@ -934,7 +956,7 @@ function renderDocView(label, body) {
 // Seal a FULL file (bytes, with size-class padding) and store the ciphertext on Walrus,
 // governed by a fresh Sui policy — the always-available, browsable data-room copy. Same
 // encrypt → mint → Seal protocol as a .elur; only the destination differs.
-async function sealFileToWalrus(path, folder) {
+async function sealFileToWalrus(path, folder, viewOnly) {
   const bytes = ub64(await platform.readPath(path));
   const name = baseName(path);
   const ext = ((name.match(/\.([^.]+)$/) || [])[1] || "").toLowerCase();
@@ -949,7 +971,9 @@ async function sealFileToWalrus(path, folder) {
   const { encryptedObject } = await newSeal().encrypt({ threshold: 1, packageId: SEAL_PKG, id: policyId, data: ck });
   // The blob carries NO cleartext name/type — the filename lives inside the encrypted
   // AES frame (aesEncrypt embeds it), so Walrus learns nothing about the document.
-  const pkg = JSON.stringify({ v: 1, policyId, ek: b64(encryptedObject), iv: b64(iv), ct: b64(ct), exportable: true });
+  // exportable:false → the open path watermarks every view with the viewer's identity and
+  // blocks export (leak-tracing, app-enforced).
+  const pkg = JSON.stringify({ v: 1, policyId, ek: b64(encryptedObject), iv: b64(iv), ct: b64(ct), exportable: !viewOnly });
   const blobId = await platform.walrusStore(b64(new TextEncoder().encode(pkg)), 30);
   agentMems.push({ label, blobId, policyId, capId, folder, kind: "file", name, ext });
   return label;
@@ -991,9 +1015,10 @@ async function roomAddDocs(folderPick) {
   let ok = 0;
   for (let i = 0; i < paths.length; i++) {
     $("#roomStatus").textContent = `${dest === "walrus" ? "Sealing & storing on Walrus" : "Sealing"} “${baseName(paths[i])}” (${i + 1}/${paths.length})…`;
-    try { if (dest === "walrus") await sealFileToWalrus(paths[i], folder); else await sealFileLocal(paths[i]); ok++; } catch (e) { /* skip, keep going */ }
+    try { const vo = !!($("#roomViewOnly") && $("#roomViewOnly").checked); if (dest === "walrus") await sealFileToWalrus(paths[i], folder, vo); else await sealFileLocal(paths[i]); ok++; } catch (e) { /* skip, keep going */ }
   }
   if (dest === "walrus") {
+    tagDemoFolders();
     agentPersist();
     roomManifest = agentMems.map(({ label, folder, blobId, policyId, kind, name, ext }) => ({ label, folder: folder || null, blobId, policyId, kind, name, ext }));
     roomFolder = folder; roomOpenBlob = null;
@@ -1245,11 +1270,17 @@ function render(name, bytes, opts = {}) {
 // a screenshot (or a phone photo of the screen) carries this identifier.
 function applyWatermark(container, text) {
   container.style.position = "relative";
+  // One rotated SVG tile, repeated as a background → perfectly even diagonal coverage
+  // (data-room style), instead of a ragged flex grid. Opacity lives in the SVG fill.
+  const TW = 400, TH = 150;
+  const t = String(text).replace(/[<>&]/g, (c) => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;" }[c]));
+  const svg = `<svg xmlns='http://www.w3.org/2000/svg' width='${TW}' height='${TH}'>` +
+    `<text x='${TW / 2}' y='${TH / 2}' fill='#16243f' fill-opacity='0.09' ` +
+    `font-family='ui-monospace,monospace' font-size='12' font-weight='600' letter-spacing='0.4' ` +
+    `text-anchor='middle' dominant-baseline='middle' transform='rotate(-26 ${TW / 2} ${TH / 2})'>${t}</text></svg>`;
   const wm = document.createElement("div");
   wm.className = "watermark";
-  let inner = "";
-  for (let i = 0; i < 60; i++) inner += `<span>${text}</span>`;
-  wm.innerHTML = inner;
+  wm.style.backgroundImage = `url("data:image/svg+xml,${encodeURIComponent(svg)}")`;
   container.appendChild(wm);
 }
 // max-opens accounting: the gate only READS opens, so we record an open separately.
@@ -1631,7 +1662,9 @@ async function revokeShare(i) {
     {tab:'#tabOverview', sel:'#paneOverview .roomhead', n:'Welcome to Elur', h:'Your whole deal, governed', b:'Elur seals your documents and decides — live, on-chain — who can open them: people and AI agents alike. Here is the whole app in about a minute.'},
     {tab:'#tabShare', sel:'#paneShare .roomhead', n:'Encrypt', h:'Seal and share on your terms', b:'Encrypt any file on your device, then share it anywhere. Add an expiry, cap the opens, or make it view-only and watermarked. Gas is sponsored — no wallet, no crypto.'},
     {tab:'#tabOpen', sel:'#paneOpen .roomhead', n:'Open', h:'No account needed', b:'Anyone you send to opens the file right here — no sign-up, nothing uploaded. It unlocks only while your key still allows it. They hold it; you still own it.'},
-    {tab:'#tabAgent', sel:'#paneAgent .roomhead', n:'Access control', h:'The heart of Elur', b:'Grant or revoke every identity that can open your documents — colleagues and AI agents on one list. An agent is simply an identity you can switch off, anytime, from here.'},
+    {tab:'#tabAgent', sel:'#paneAgent .roomhead', n:'Access control', h:'The heart of Elur', b:'Grant or revoke every identity that can open your documents — people and AI agents on one list. An agent is just an identity you can switch off.'},
+    {tab:'#tabAgent', sel:'#ppAddr', n:'Add a person or agent', h:'Grant by on-chain identity', b:'Each identity is a Sui address. The other side signs into their own Elur and copies their address (top-right — “click to copy”); paste it here, name it, and Add identity. No counterparty handy? Use “generate a test identity” to try the whole flow yourself. Granting and revoking are signed on the ledger.'},
+    {tab:'#tabAgent', sel:'#aExport', n:'Connect an AI agent', h:'Governed memory over MCP', b:'Export the manifest (labels + blob ids — no content, no keys) and point Claude Desktop or Cursor at Elur’s MCP server (see agent/CONNECT.md). The agent reads these documents through the same gate as the identity you granted; revoke its badge and its next read returns access denied.'},
     {tab:'#tabRoom', sel:'#paneRoom .roomhead', n:'Documents', h:'An always-available deal room', b:'Browse the deal by folder and open exactly what is shared with you, stored on Walrus. Locked files still show — request access in a click. Revoke, and it re-seals everywhere.'},
     {tab:'#tabRequests', sel:'#paneRequests .roomhead', n:'Requests', h:'Two-way document negotiation', b:'Ask a counterparty for what you need with a deadline, and fulfil what they ask of you. Fulfilling a request is a real on-chain grant — scoped to expire when the review window closes.'},
     {tab:'#tabQA', sel:'#paneQA .roomhead', n:'Q&A', h:'Coming next · preview', b:'A governed deal conversation behind the same gate as the documents. Fully designed; it switches on once its messaging SDK catches up to our stack.'},
@@ -1712,7 +1745,7 @@ try { agentMems = JSON.parse(localStorage.getItem("elurAgentMems") || "[]"); } c
 const agentPersist = () => { try { localStorage.setItem("elurAgentMems", JSON.stringify(agentMems)); } catch {} };
 // Everything is a demo: the canonical documents arrive already sorted into folders,
 // so the workspace is populated the moment you open it — no setup button to press.
-const DEMO_FOLDERS = { "term sheet": "Corporate", "board resolution": "Corporate", "legal counsel": "Legal", "due diligence summary": "Financial", "confidential budget": "Financial" };
+const DEMO_FOLDERS = { "term sheet": "Corporate", "board resolution": "Corporate", "legal counsel": "Legal", "deal contacts": "Legal", "counsel": "Legal", "legal opinion": "Legal", "opinion": "Legal", "due diligence": "Financial", "confidential budget": "Financial" };
 let _foldersTagged = false;
 function tagDemoFolders() {
   for (const m of agentMems) {
@@ -1843,7 +1876,9 @@ function agentRefreshAuth() {
     tagDemoFolders();
     agentRenderMems();
     renderPeople();
-    castDemoIfNeeded();
+    // castDemoIfNeeded();  // disabled: keep demo docs BEARER (open to anyone) so the hosted
+    // web demo and the agent quickstart open for anonymous judges. Identity-gating is shown
+    // via manual grant/revoke in Access control, and the Confidential Budget denies via revoke.
   }
 }
 function aBusy(on, txt) {
@@ -1872,12 +1907,14 @@ async function agentRenderMems() {
       el.className = "amem" + (folder ? " infolder" : "");
       el.innerHTML = `<div class="atop"><span class="albl">${m.label}</span><span class="abadge ${active ? "on" : "off"}">${active ? "● active" : "● revoked"}</span></div>
         <div class="abid" data-bid="${m.blobId}" title="Click to copy the full Walrus ID" style="cursor:pointer">walrus:${m.blobId.length > 14 ? m.blobId.slice(0, 6) + "…" + m.blobId.slice(-6) : m.blobId}</div>
-        ${active ? `<button class="arev" data-l="${m.label}">Revoke on ledger</button>` : `<span class="asealed">sealed — the agent can't read this</span> <button class="arev" data-r="${m.label}" style="color:#2a7">Re-grant on ledger</button>`}`;
+        ${active ? `<button class="arev" data-l="${m.label}">Revoke on ledger</button>` : `<span class="asealed">sealed — the agent can't read this</span> <button class="arev" data-r="${m.label}" style="color:#2a7">Re-grant on ledger</button>`}
+        <button class="arev" data-del="${m.blobId}" style="color:var(--faint);border-color:#e2dccd;margin-left:6px" title="Remove this document from the room. The on-chain policy isn't destroyed — use Revoke first to end access.">Remove</button>`;
       box.appendChild(el);
     }
   }
   box.querySelectorAll(".arev[data-l]").forEach((b) => b.onclick = () => agentDoRevoke(b.dataset.l));
   box.querySelectorAll(".arev[data-r]").forEach((b) => b.onclick = () => agentDoReinstate(b.dataset.r));
+  box.querySelectorAll(".arev[data-del]").forEach((b) => b.onclick = () => agentRemoveMem(b.dataset.del));
   box.querySelectorAll(".abid[data-bid]").forEach((el) => el.onclick = async () => {
     try { await navigator.clipboard.writeText(el.dataset.bid); const old = el.textContent; el.textContent = "✓ copied"; setTimeout(() => { el.textContent = old; }, 900); } catch {}
   });
@@ -1896,6 +1933,19 @@ async function agentDoReinstate(label) {
     $("#aStatus").textContent = `✓ “${label}” re-granted — sealed, never lost. The agent can read it again.`;
   } catch (e) { $("#aStatus").textContent = "❌ " + (e.message || String(e)).slice(0, 160); }
   finally { $("#paneAgent").querySelectorAll("button,input").forEach((b) => b.disabled = false); }
+}
+// Remove a document from the room — local list only. The sealed blob and its on-chain
+// policy are untouched; use "Revoke on ledger" first if you want to actually end access.
+function agentRemoveMem(blobId) {
+  const m = agentMems.find((x) => x.blobId === blobId);
+  if (!m) return;
+  if (!confirm(`Remove “${m.label}” from this room?\n\nIt comes off your list. The sealed blob and its on-chain policy stay as they are — if you want to END access, use “Revoke on ledger” first. You can add the document again anytime.`)) return;
+  agentMems = agentMems.filter((x) => x.blobId !== blobId);
+  agentPersist();
+  try { agentTextCache.delete(blobId); } catch {}
+  if (roomManifest) roomManifest = roomManifest.filter((d) => d.blobId !== blobId);
+  agentRenderMems();
+  try { if ($("#paneRoom") && $("#paneRoom").style.display !== "none") renderRoom(); } catch {}
 }
 async function agentTeach(label, text) {
   aBusy(true, `sealing “${label}” to a policy and storing on Walrus…`);

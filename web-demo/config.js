@@ -10,16 +10,20 @@
 // The revoked doc denies for EVERYONE regardless of A/B — that's the point.
 
 export const CONFIG = {
-  dealName: "Project Páramo",
-  subtitle: "A live deal room on Sui testnet. No install, no account — documents open in your browser, through the on-chain gate.",
+  dealName: "Project Snowfall",
+  subtitle: "A live M&A deal room on Sui testnet. No install, no account — documents open in your browser, through the on-chain gate. Try the Confidential Budget: it's been revoked, and you'll watch the gate refuse it.",
 
-  recipientSecret: null, // ← paste a throwaway suiprivkey1... for option B, or leave null for A
+  recipientSecret: null, // bearer — these docs are mode 0 / empty allowlist, so anyone opens them
 
-  // blobIds are the REAL Walrus testnet blobs (from agent/elur-manifest.json).
-  // NOTE: the original 5 demo blobs expired (testnet GC). Re-store them via the app
-  // (now 30-epoch) and paste the fresh blobIds back here. Live doc for the plumbing proof:
+  // REAL Walrus testnet blobs (30-epoch), sealed from the Project Snowfall deal docs.
+  // The Confidential Budget is revoked on-chain → it DENIES for everyone (the showcase).
   docs: [
-    { label: "Breathing Square (sample)", folder: "Demo", blobId: "7RwnalmEk_MavI47vXpWmvNO0OvZoQy92yO6Dyc7tbk", name: "breathing-square.html", ext: "html" },
+    { label: "Term Sheet",            folder: "Corporate", blobId: "HCjfF3MKP8WAUzu9RMo3adzGIy3rtO1dYLQrII4S6qQ", name: "01_Term_Sheet.pdf",                ext: "pdf" },
+    { label: "Board Resolution",      folder: "Corporate", blobId: "6am577nKNTz45kgzIkxEIZAzZ87IGG3KLWWQekaaXV4", name: "05_Board_Resolution.pdf",          ext: "pdf" },
+    { label: "Due Diligence Summary", folder: "Financial", blobId: "lbE_MfAtLuPE0sjzT25X-QliPrrXHm-Q4DVl8T1v82M", name: "03_Due_Diligence_Summary.pdf",     ext: "pdf" },
+    { label: "Deal Contacts & Counsel", folder: "Legal",   blobId: "cuKC39fmyXXGhwWUN0g67taQHWpHxN_C-jLxkk31Tyg", name: "04_Deal_Contacts_and_Counsel.pdf", ext: "pdf" },
+    { label: "Privileged Legal Opinion", folder: "Legal",  blobId: "tZdXTcvYNnE75Tl8Xgb4Kb_lMWPX0yQEr3wb02-fJNM", name: "06_Privileged_Legal_Opinion.pdf",  ext: "pdf", note: "privileged · view-only in the app" },
+    { label: "Confidential Budget",   folder: "Financial", blobId: "ZhAGnUsaC-Mm1ItIswLVU80NFaYdrPwWuu9JmUN3QdA", name: "02_Confidential_Budget.xlsx",     ext: "xlsx", note: "acquirer-only — try it" },
   ],
 
   // Walrus testnet aggregator (HTTP read). If CORS blocks it in the browser, set this

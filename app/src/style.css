@@ -269,8 +269,7 @@ p.muted { margin: 10px 0 0; }
 /* view-only render: watermark overlay + no-select */
 #render.view-only { overflow: hidden; user-select: none; -webkit-user-select: none; }
 #render.view-only img, #render.view-only pre, #render.view-only iframe, #render.view-only canvas { pointer-events: none; -webkit-user-drag: none; }
-.watermark { position: absolute; inset: 0; pointer-events: none; overflow: hidden; display: flex; flex-wrap: wrap; align-content: center; justify-content: center; gap: 26px 40px; transform: rotate(-28deg) scale(1.5); opacity: .16; }
-.watermark span { font-family: ui-monospace, monospace; font-size: 13px; font-weight: 700; color: var(--ink); white-space: nowrap; }
+.watermark { position: absolute; inset: 0; pointer-events: none; overflow: hidden; background-repeat: repeat; background-position: center; }
 .vo-note { margin-top: 14px; font-size: 13.5px; color: var(--muted); background: var(--panel2); border: 1px solid var(--line); border-radius: 10px; padding: 11px 13px; line-height: 1.5; }
 
 /* fullscreen reader */
@@ -286,6 +285,10 @@ p.muted { margin: 10px 0 0; }
 .viewer-overlay.view-only .viewer-stage { user-select: none; -webkit-user-select: none; }
 .viewer-overlay.view-only .viewer-stage img, .viewer-overlay.view-only .viewer-stage iframe, .viewer-overlay.view-only .viewer-stage pre, .viewer-overlay.view-only .viewer-stage canvas { pointer-events: none; }
 .viewer-stage .pdfdoc { width: 100%; max-height: none; }
+/* In the scrollable fullscreen reader, pin the watermark to the viewport so it covers
+   the whole document as you scroll (not just the first screenful). Dark tiles read on the
+   white page and vanish over the dark margins. */
+.viewer-overlay .watermark { position: fixed; inset: 0; }
 
 .share { display: flex; align-items: center; gap: 10px; padding: 11px 0; border-bottom: 1px solid #f0f1f3; font-size: 14.5px; }
 .share:last-child { border-bottom: none; }

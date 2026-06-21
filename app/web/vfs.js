@@ -36,13 +36,16 @@ function acceptFrom(filters) {
   return exts.join(",");
 }
 
+// NOTE: we intentionally do NOT pass the app's extension filter to the browser
+// file input — on macOS the picker grays out perfectly valid files (e.g. PDFs/xlsx)
+// when handed a long accept list. The web app can encrypt any file, so allow all.
 export async function pickOne(filters) {
-  const files = await pickInput(acceptFrom(filters), false, false);
+  const files = await pickInput("", false, false);
   if (!files.length) return null;
   const id = "f" + ++n; map.set(id, files[0]); return tok(id, files[0].name);
 }
 export async function pickMany(filters) {
-  const files = await pickInput(acceptFrom(filters), true, false);
+  const files = await pickInput("", true, false);
   if (!files.length) return null;
   return files.map((f) => { const id = "f" + ++n; map.set(id, f); return tok(id, f.name); });
 }
