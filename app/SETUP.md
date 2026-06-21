@@ -23,7 +23,7 @@ node --version     # you already have Node from the web viewer
 ## Run the app
 
 ```bash
-cd "/Users/andresc/Documents/Claude/Projects/Yale/mac-app"
+cd app
 npm install
 npm run tauri dev
 ```

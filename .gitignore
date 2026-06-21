@@ -21,3 +21,7 @@ id_rsa*
 # editor / OS junk
 .fuse_hidden*
 *.swp
+
+# Cloudflare local cache (leaks account email)
+.wrangler/
+wrangler-account.json
