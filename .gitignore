@@ -25,3 +25,6 @@ id_rsa*
 # Cloudflare local cache (leaks account email)
 .wrangler/
 wrangler-account.json
+
+# superseded by the full web app build + web-demo
+web-viewer/
