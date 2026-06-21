@@ -5,12 +5,16 @@
 revoke it so it re-seals everywhere — even on a copy already downloaded. And Elur **can't read
 your files** — not "won't," *can't* — because it's never in the custody path.
 
-## ▶ Try it now — no install, no account → **[elur.io/suioverflow2026demo](https://elur.io/suioverflow2026demo)**
+## ▶ Try the live demo → **[elur.io/suioverflow2026demo](https://elur.io/suioverflow2026demo)**
 
-A live deal room on **Sui testnet**. Open a document — it decrypts **in your browser**, through the
-on-chain gate. Then open the **Confidential Budget**: it's been revoked on-chain, and you'll watch
-the gate refuse it. You can also **sign in with Google (zkLogin)** and **encrypt your own file** end
-to end — gas sponsored, no wallet. Nothing is mocked, nothing is installed.
+A live deal room on **Sui testnet** — an **evaluation build** that runs in your browser so you can
+try Elur without installing anything. Open a document: it decrypts through the on-chain gate. Open
+the **Confidential Budget**: it's revoked on-chain, and you'll watch the gate refuse it. Sign in with
+Google (zkLogin) and **encrypt your own file** end to end — gas sponsored, no wallet. Nothing is mocked.
+
+> **This browser build is for evaluation.** In production, **Elur ships as a native desktop app** —
+> same code, same on-chain gate, but your keys live in your OS keychain and nothing runs in a browser.
+> That's where the security guarantees are strongest; the web build just lowers the bar to try it.
 
 ## What it is
 
@@ -28,14 +32,16 @@ Encrypt → share → open → revoke, for files and folders. Identity via **zkL
 no wallet, sponsored gas). And **governed agent memory**: an AI agent gets its own on-chain badge
 and reads through the same gate over **MCP** — revoke the badge and it provably forgets.
 
-## Three ways to see it
+## Ways to see it
 
-- **The web demo** ([elur.io/suioverflow2026demo](https://elur.io/suioverflow2026demo)) — recipient
-  decryption + live revocation, plus encrypt-your-own via zkLogin. No install. Source: [`web-demo/`](web-demo/).
-- **The full app, in a browser** — the entire product (Encrypt, Open, Access control, Documents,
-  Requests, Activity) runs as a web build with **no Rust toolchain**:
-  `cd app && npm install && npm run web`. It's the *same source* as the native app; the Tauri layer
-  is swapped for browser shims ([`app/web/`](app/web/)).
+- **The product — a native desktop app.** Elur ships as a native **macOS / Tauri** app, where keys
+  live in the OS keychain and files are encrypted locally — the trust boundary a security product
+  needs. Run from source: `cd app && npm install && npm run tauri dev` (needs Rust/Tauri + your own
+  Enoki/OAuth keys). The submission **video** shows it end to end.
+- **The evaluation build, in a browser** — to make it easy to try, the *same app* also runs as a web
+  build with no Rust toolchain (`cd app && npm run web`); the Tauri layer is swapped for browser shims
+  ([`app/web/`](app/web/)). This is what the [live demo](https://elur.io/suioverflow2026demo) hosts —
+  for evaluation, not the shipped product.
 - **Connect your own agent** — point Claude Desktop / Cursor at a governed manifest via the Elur MCP
   server (~5 min, no app): [`agent/CONNECT.md`](agent/CONNECT.md). One document opens; the revoked
   one is refused — for *your* agent, against live testnet.
@@ -44,12 +50,6 @@ and reads through the same gate over **MCP** — revoke the badge and it provabl
 
 [`contracts/sources/access.move`](contracts/sources/access.move): the `AccessPolicy` object and the
 read-only **`seal_approve`** gate. Every key release, for every reader — person or agent — passes here.
-
-## The native app (optional)
-
-The same app also ships as a native **macOS / Tauri** build (`cd app && npm run tauri dev`), which
-adds Keychain-backed vaults and deeper OS file integration. It needs Rust/Tauri plus your own
-Enoki/OAuth keys; the submission **video** shows it running end-to-end.
 
 ## Status & honesty
 
