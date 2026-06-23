@@ -1,0 +1,35 @@
+name: keep-warm
+
+# Pings the Elur sponsor's health endpoint so Render's free instance never sleeps
+# (it spins down after ~15 min idle, adding a ~50s cold start to the first request).
+# Runs on GitHub's own infrastructure — no extra account, no cost.
+#
+# Notes:
+#  • GitHub's minimum schedule granularity is 5 min; scheduled runs can be delayed
+#    several minutes under load, so 10-min cadence keeps comfortable margin.
+#  • GitHub auto-disables scheduled workflows after 60 days with no repo activity —
+#    fine for the hackathon/Demo-Day window; re-enable from the Actions tab if needed.
+#  • You can also trigger it by hand from the Actions tab (workflow_dispatch).
+
+on:
+  schedule:
+    - cron: "*/10 * * * *"
+  workflow_dispatch:
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping sponsor health endpoint
+        run: |
+          for i in 1 2 3; do
+            code=$(curl -s -o /dev/null -w "%{http_code}" --max-time 70 https://elur.onrender.com/ || true)
+            echo "attempt $i -> HTTP $code"
+            if [ "$code" = "200" ]; then
+              echo "sponsor awake"
+              exit 0
+            fi
+            sleep 15
+          done
+          echo "sponsor did not return 200 (will retry next run)"
+          exit 0
