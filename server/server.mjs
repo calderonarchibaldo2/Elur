@@ -26,7 +26,8 @@ if (!PRIVATE_KEY || PRIVATE_KEY.includes("PASTE")) {
 
 const ENOKI = "https://api.enoki.mystenlabs.com";
 const NETWORK = "testnet";
-const PORT = 3777;
+// Hosts (Railway/Render/Fly) assign the port via $PORT and require binding 0.0.0.0.
+const PORT = process.env.PORT || 3777;
 // Only Elur's own contract can be sponsored — nobody can drain the gas budget
 // through this server for anything else.
 // PACKAGE_ID = original-id (v1) — the app still mints/revokes here and Seal's
@@ -92,6 +93,7 @@ async function enoki(path, { jwt, body }) {
 
 createServer(async (req, res) => {
   if (req.method === "OPTIONS") return json(res, 204, {});
+  if (req.method === "GET") return json(res, 200, { ok: true, service: "elur-sponsor", network: NETWORK }); // health check
   if (req.method !== "POST") return json(res, 405, { error: "POST only" });
   let body = "";
   for await (const chunk of req) body += chunk;
@@ -133,4 +135,4 @@ createServer(async (req, res) => {
     console.error(e.message);
     return json(res, 502, { error: e.message });
   }
-}).listen(PORT, "127.0.0.1", () => console.log(`Elur sponsor backend → http://127.0.0.1:${PORT} (${NETWORK})`));
+}).listen(PORT, "0.0.0.0", () => console.log(`Elur sponsor backend → :${PORT} (${NETWORK})`));
