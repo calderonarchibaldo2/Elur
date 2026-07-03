@@ -1,21 +1,21 @@
-# Elur Agent — Governed, Revocable Memory for AI Agents
+# Elur Agent — You Decide What AI Agents Read
 
-### Don't trust the agent's memory. *Govern* it.
+### Owner-governed, revocable access to your documents — for any agent, over MCP.
 
 **Sui Overflow 2026 · Walrus Track**
 
-Every AI agent that remembers things stores those memories *somewhere*. Today that
-somewhere is a plaintext vector store or a file on a server — and once a memory is
-in there, you have no way to take it back. You cannot expire it, revoke it, or prove
-it is gone. In a world of autonomous agents handling contracts, health data, and
-deal terms, **"the agent remembers everything, forever, and you can't stop it"** is
-exactly the wrong default.
+AI agents read everything now. Point one at your files and it ingests contracts,
+health records, deal terms — and from that moment, *you* have no way to take it
+back. You cannot expire what it holds, revoke it, or prove it is gone. In a world
+of autonomous agents, **"the agent keeps everything, forever, and the owner can't
+stop it"** is exactly the wrong default.
 
-Elur makes agent memory **governed**: every memory is encrypted on the device, its
-key is sealed to an **on-chain access policy**, and the ciphertext is stored on
-**Walrus**. The agent can recall a memory only while the policy still allows it.
-Revoke the policy, and the agent can still *fetch* the blob from Walrus — but
-**Seal refuses the key, and the memory becomes unreadable. The agent has forgotten.**
+Elur inverts it: **the owner holds the leash.** Anything an agent may read is
+encrypted on your device, its key sealed to an **on-chain access policy**, and the
+ciphertext stored on **Walrus**. The agent can read it — and re-read it, and use it
+as memory if you choose — only while *your* policy allows. Revoke, and the agent can
+still fetch the blob from Walrus — but **Seal refuses the key, and the data becomes
+unreadable. Access over. Provably.**
 
 ---
 

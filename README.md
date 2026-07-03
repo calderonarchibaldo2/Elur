@@ -3,7 +3,15 @@
 **Non-custodial, governed document sharing — for people and AI agents.** Sharing becomes a
 **revocable lease, not a permanent gift**: you see who opened a file, set it to expire, and
 revoke it so it re-seals everywhere — even on a copy already downloaded. And Elur **can't read
-your files** — not "won't," *can't* — because it's never in the custody path.
+your files** — not "won't," *can't* — because it's never in the custody path. Your documents
+never become training data and never teach anyone's model your business — not as a promise,
+as a **property of the architecture**.
+
+**Three questions every provider should have to answer — ours have provable answers.**
+*Who can see it?* Only who you allow, for as long as you allow. *Where is it cached?*
+Nowhere — what leaves your device is ciphertext. *Did it train something?* Never — nothing
+upstream can read it, so nothing upstream can learn from it. You own the means of production
+of your own documents.
 
 ## ▶ Try the live demo → **[elur.io/suioverflow2026demo](https://elur.io/suioverflow2026demo)**
 
@@ -29,8 +37,9 @@ A custodian normally bundles three powers — it **stores** your file, holds the
   max-opens, and revocation. The whole guarantee is one read-only function, **`seal_approve`**.
 
 Encrypt → share → open → revoke, for files and folders. Identity via **zkLogin** (Google sign-in,
-no wallet, sponsored gas). And **governed agent memory**: an AI agent gets its own on-chain badge
-and reads through the same gate over **MCP** — revoke the badge and it provably forgets.
+no wallet, sponsored gas). And **governed agent access**: AI agents read everything now — with
+Elur, *you* decide what any agent may read. An agent gets its own on-chain badge and reads through
+the same gate over **MCP** — revoke the badge and its next read is refused, provably, everywhere.
 
 ## Ways to see it
 
