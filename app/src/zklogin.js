@@ -66,8 +66,8 @@ async function sponsoredExec(suiClient, tx, s, eph, options) {
     body: JSON.stringify({ digest, signature }),
   });
   if (!r2.ok) throw new Error("execute: " + (await r2.text()).slice(0, 200));
-  await suiClient.waitForTransaction({ digest });
-  return suiClient.getTransactionBlock({ digest, options });
+  await suiClient.core.waitForTransaction({ digest });
+  return suiClient.core.getTransaction({ digest, include: options });
 }
 
 // Read the user-facing identity (email) out of the JWT — decoded locally, never sent anywhere.

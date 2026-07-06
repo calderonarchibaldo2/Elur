@@ -54,8 +54,8 @@ async function sponsoredExec(suiClient, tx, s, eph, options) {
     body: JSON.stringify({ digest, signature }),
   });
   if (!r2.ok) throw new Error("execute: " + (await r2.text()).slice(0, 200));
-  await suiClient.waitForTransaction({ digest });
-  return suiClient.getTransactionBlock({ digest, options });
+  await suiClient.core.waitForTransaction({ digest });
+  return suiClient.core.getTransaction({ digest, include: options });
 }
 
 function jwtClaims(jwt) {
@@ -75,7 +75,7 @@ function makeSigner(s) {
       tx.setSender(s.address);
       const bytes = await tx.build({ client: suiClient });
       const signature = await zkSig(s, eph, bytes);
-      return suiClient.executeTransactionBlock({ transactionBlock: bytes, signature, options });
+      return suiClient.core.executeTransaction({ transaction: bytes, signatures: [signature], include: options });
     },
   };
 }
@@ -124,6 +124,9 @@ async function completeFromHash() {
   };
   localStorage.setItem(SESSION, JSON.stringify(session));
   sessionStorage.removeItem(PENDING);
+  // The soft gate overlay rendered before this async completion finished, so tell it
+  // to dismiss now that we're signed in (otherwise it sits on top → sign-in loop).
+  try { window.dispatchEvent(new Event("elur:signed-in")); } catch {}
   return makeSigner(session);
 }
 

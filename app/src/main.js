@@ -3,7 +3,7 @@
 // Differences from the browser: native file dialogs (Rust read_path/write_path)
 // instead of download/drag, and the recovery phrase lives in the macOS Keychain.
 
-import { SuiJsonRpcClient, getJsonRpcFullnodeUrl } from "@mysten/sui/jsonRpc";
+import { SuiGrpcClient } from "@mysten/sui/grpc";
 import { Ed25519Keypair } from "@mysten/sui/keypairs/ed25519";
 import { Transaction } from "@mysten/sui/transactions";
 import { fromHex } from "@mysten/sui/utils";
@@ -27,7 +27,7 @@ const SERVER_CONFIGS = [
   { objectId: "0x73d05d62c18d9374e3ea529e8e0ed6161da1a141a94d3f76ae3fe4e99356db75", weight: 1 },
 ];
 
-const suiClient = new SuiJsonRpcClient({ url: getJsonRpcFullnodeUrl("testnet"), network: "testnet" });
+const suiClient = new SuiGrpcClient({ baseUrl: "https://fullnode.testnet.sui.io:443", network: "testnet" });
 const subtle = window.crypto.subtle;
 const newSeal = () => new SealClient({ suiClient, serverConfigs: SERVER_CONFIGS, verifyKeyServers: false });
 
@@ -249,6 +249,8 @@ async function fulfillRequest(reqId, sel) {
   if (sel && sel.startsWith("folder:")) { const f = sel.slice(7); grant = mems.filter((m) => (m.folder || "") === f); label = `${f} folder (${grant.length} docs)`; }
   else { const m = mems.find((x) => x.label === sel); if (m) { grant = [m]; label = `“${m.label}”`; } }
   if (!grant.length) { $("#rqMsg").textContent = "Choose a document or folder to grant — or upload a new file."; return; }
+  if (!grant.some((m) => m.capId)) { $("#rqMsg").textContent = "Those are seeded demo documents — add a file of your own to fulfil a request with it."; return; }
+  grant = grant.filter((m) => m.capId);
   const expiryMs = r.reviewDays ? Date.now() + r.reviewDays * 864e5 : 0;
   const who = (peopleBook[r.party] || "the requester").split(" · ")[0];
   $("#rqMsg").textContent = `Granting ${label} to ${who}…`;
@@ -271,7 +273,7 @@ async function fulfillRequest(reqId, sel) {
 async function fulfillByUpload(reqId) {
   const r = dealRequests.find((x) => x.id === reqId); if (!r) return;
   let picked;
-  try { picked = await platform.chooseFile([{ name: "Documents", extensions: REQ_DOC_EXT }]); } catch { return; }
+  try { picked = await platform.chooseFile(); } catch { return; } // no filter — macOS greys valid files otherwise
   if (!picked) return;
   const path = Array.isArray(picked) ? picked[0] : picked;
   const label = baseName(path).replace(/\.[^.]+$/, "").replace(/^\d+[_\-\s]*/, "").replace(/[_\-]+/g, " ").trim() || baseName(path);
@@ -343,8 +345,8 @@ $("#tabOverview").onclick = () => switchTab("Overview");
 // just a summed view of your own records and the public chain.
 async function ovPolicyState(policyId) {
   try {
-    const o = await suiClient.getObject({ id: policyId, options: { showContent: true } });
-    const f = o?.data?.content?.fields; if (!f) return null;
+    const o = await suiClient.core.getObject({ objectId: policyId, include: { json: true } });
+    const f = o?.object?.json; if (!f) return null;
     const expiry = Number(f.expiry_ms) || 0, maxOpens = Number(f.max_opens) || 0, opens = Number(f.opens) || 0;
     const expired = expiry !== 0 && Date.now() >= expiry;
     const exhausted = maxOpens !== 0 && opens >= maxOpens;
@@ -420,14 +422,18 @@ async function renderOverview() {
   const roleOf = (p) => ((p.name || "").split(" · ")[1] || "");
   const short1 = (n) => (n || "").split(" · ")[0];
 
+  const nAgents = cps.filter((p) => isAgent(p.addr)).length;
+  const nPeople = cps.length - nAgents;
   let html = `<div class="ovstatus">
     <div class="ovdeal">${dealName}</div>
     <div class="ovstats">
       <span class="ovstat"><b>${live}</b> live</span>
-      <span class="ovstat"><b>${cps.length}</b> ${cps.length === 1 ? "counterparty" : "counterparties"}</span>
+      <span class="ovstat"><b>${nPeople}</b> ${nPeople === 1 ? "person" : "people"}</span>
+      ${nAgents ? `<span class="ovstat"><b>${nAgents}</b> AI ${nAgents === 1 ? "agent" : "agents"}</span>` : ""}
       <span class="ovstat"><b>${totalWk}</b> open${totalWk === 1 ? "" : "s"} this week</span>
       ${sealed ? `<span class="ovstat muted"><b>${sealed}</b> sealed</span>` : ""}
     </div>
+    <button class="mini" id="ovExport" title="Export every grant, open and revocation for this deal — read from the public ledger">Export trail ↓</button>
     <button class="mini" id="ovOpenRoom">Open room →</button>
   </div>`;
 
@@ -462,19 +468,23 @@ async function renderOverview() {
   }
   html += `</div>`;
 
-  // counterparty activity, ranked
-  html += `<div class="ovsec"><div class="ovsech">Counterparty activity <span class="ovhint">most active first</span></div>`;
-  if (!cps.length) html += `<p class="muted small">No counterparties have access yet — grant one in Access control.</p>`;
+  // who can open — people AND AI agents, one gate
+  html += `<div class="ovsec"><div class="ovsech">Who can open this deal <span class="ovhint">most active first · people &amp; AI agents, one gate</span></div>`;
+  if (!cps.length) html += `<p class="muted small">No one has access yet — grant a person or an agent in Access control.</p>`;
   else html += cps.map((p, i) => {
+    const ag = isAgent(p.addr);
     const color = i % 2 ? "var(--brass)" : "var(--ink)";
     const eng = p.wk ? `${p.wk} open${p.wk > 1 ? "s" : ""} this week · last ${ovTime(p.last)}`
       : p.last ? `last opened ${ovTime(p.last)}` : `<span class="ovcold">not opened yet</span>`;
     const role = roleOf(p);
-    return `<div class="person"><div class="pavatar" style="background:${color}">${(cpName(p)[0] || "?").toUpperCase()}</div>
-      <div class="pinfo"><div class="ovcpname">${cpName(p)}${role ? ` <span class="ovrole">${role}</span>` : ""}</div>
+    const avatar = ag ? `<div class="pavatar agent">AI</div>` : `<div class="pavatar" style="background:${color}">${(cpName(p)[0] || "?").toUpperCase()}</div>`;
+    const tag = ag ? ` <span class="aitag">AI agent</span>` : "";
+    return `<div class="person">${avatar}
+      <div class="pinfo"><div class="ovcpname">${cpName(p)}${role ? ` <span class="ovrole">${role}</span>` : ""}${tag}</div>
       <div class="paddr">${eng} · can open ${p.docs} of ${mems.length}</div></div>
       <button class="mini danger" data-revcp="${p.addr}">Revoke access</button></div>`;
   }).join("");
+  if (nAgents) html += `<p class="muted small" style="margin-top:10px">Agents and people sit behind the same gate. Revoking an agent's badge cuts it off every document at once — the key servers refuse, and anything it already pulled stops opening.</p>`;
   html += `</div>`;
 
   // recent opens + flags
@@ -489,6 +499,7 @@ async function renderOverview() {
 
   box.innerHTML = html;
   $("#ovOpenRoom") && ($("#ovOpenRoom").onclick = () => switchTab("Room"));
+  $("#ovExport") && ($("#ovExport").onclick = () => ovExportTrail(dealName));
   box.querySelectorAll("[data-tab]").forEach((b) => b.onclick = () => switchTab(b.dataset.tab));
   box.querySelectorAll("[data-revcp]").forEach((b) => b.onclick = async () => {
     b.disabled = true; b.textContent = "Revoking…";
@@ -500,6 +511,41 @@ async function renderOverview() {
     try { await agentRevoke(b.dataset.revdoc); } catch {}
     setTimeout(renderOverview, 600);
   });
+}
+
+// Export the deal's access trail — every grant, open and revocation for this deal's documents,
+// read straight from the public ledger (evCache). Tamper-evident because these are on-chain events,
+// not app logs. Honest framing: evidence you can hand to a review — not a compliance certification.
+async function ovExportTrail(dealName) {
+  try {
+    if (!evCache.length) { try { await loadActivity(); } catch {} }
+    const rows = evCache
+      .filter((e) => evLabel((e.parsedJson || {}).policy))
+      .map((e) => {
+        const j = e.parsedJson || {}, d = evLabel(j.policy);
+        return {
+          event: (e.type || "").split("::").pop(),
+          identity: j.who || null,
+          name: j.who ? (nameOf(j.who) || null) : null,
+          isAgent: j.who ? isAgent(j.who) : null,
+          document: d ? d.name : null,
+          policyId: j.policy || null,
+          timeMs: Number(e.timestampMs || 0),
+          time: Number(e.timestampMs) ? new Date(Number(e.timestampMs)).toISOString() : null,
+          tx: (e.id && e.id.txDigest) || e.txDigest || null,
+        };
+      })
+      .sort((a, b) => a.timeMs - b.timeMs);
+    const out = {
+      deal: dealName || "Elur deal",
+      exportedAt: new Date().toISOString(),
+      source: "Sui testnet — public ledger",
+      note: "Every grant, open and revocation for this deal's documents, read from the public ledger. These are on-chain events, not application logs — tamper-evident evidence you can hand to a clean-team, audit, or data-subject review.",
+      eventCount: rows.length,
+      events: rows,
+    };
+    await saveBytes("elur-access-trail.json", new TextEncoder().encode(JSON.stringify(out, null, 2)));
+  } catch { /* save cancelled or nothing to export */ }
 }
 
 // ---- PEOPLE (identities you govern) ----
@@ -524,6 +570,17 @@ const DEMO_PEOPLE = {
 for (const [a, n] of Object.entries(DEMO_PEOPLE)) if (!(a in peopleBook)) peopleBook[a] = n;
 const peoplePersist = () => { try { localStorage.setItem("elurPeople", JSON.stringify(peopleBook)); } catch {} };
 const nameOf = (addr) => peopleBook[addr] || null;
+
+// Identities the owner has marked as AI agents (vs people). Owner-asserted, NOT auto-detected:
+// agents and people are governed by the exact same on-chain gate — this flag only changes how
+// they're shown so you can see, at a glance, which keys belong to machines. Seeded once with the
+// canonical Elur MCP agent badge so it self-labels when granted; fully editable after.
+const ELUR_AGENT_BADGE = "0x4506bc687360ba89fb1146f0e078432a691cdc374d5a77b1840fd810c3506e11";
+let agentSet;
+try { const _r = localStorage.getItem("elurAgents"); agentSet = new Set(_r ? JSON.parse(_r) : [ELUR_AGENT_BADGE]); } catch { agentSet = new Set([ELUR_AGENT_BADGE]); }
+const agentsPersist = () => { try { localStorage.setItem("elurAgents", JSON.stringify([...agentSet])); } catch {} };
+const isAgent = (addr) => agentSet.has(addr);
+const toggleAgent = (addr) => { agentSet.has(addr) ? agentSet.delete(addr) : agentSet.add(addr); agentsPersist(); };
 
 $("#ppAdd").onclick = () => {
   const a = $("#ppAddr").value.trim(), n = $("#ppName").value.trim();
@@ -552,8 +609,8 @@ async function collectPeople() {
   const policies = [...agentMems.map((m) => m.policyId), ...shares.map((s) => s.policyId)];
   for (const pid of policies) {
     try {
-      const o = await suiClient.getObject({ id: pid, options: { showContent: true } });
-      for (const a of (o?.data?.content?.fields?.allowlist || [])) {
+      const o = await suiClient.core.getObject({ objectId: pid, include: { json: true } });
+      for (const a of (o?.object?.json?.allowlist || [])) {
         if (!found.has(a)) found.set(a, { addr: a, name: null, pol: new Set() });
         found.get(a).pol.add(pid);
       }
@@ -588,14 +645,16 @@ async function renderPeople() {
       <div class="docpickfoot"><button class="mini" data-apply-p="${p.addr}">Apply changes</button><span class="muted small" style="margin-left:8px">Tick the documents ${(p.name || "this identity").split(" ·")[0]} may open.</span></div>
     </div>`;
     return `<div class="person">
-      <div class="pavatar" style="background:${color}">${(p.name || "?").slice(0, 1).toUpperCase()}</div>
+      ${isAgent(p.addr) ? `<div class="pavatar agent">AI</div>` : `<div class="pavatar" style="background:${color}">${(p.name || "?").slice(0, 1).toUpperCase()}</div>`}
       <div class="pinfo">
         <input class="pname" data-addr="${p.addr}" value="${p.name || ""}" placeholder="name this identity…" />
-        <div class="paddr">${p.addr.slice(0, 12)}…${p.addr.slice(-6)} · access to ${p.docs} document${p.docs === 1 ? "" : "s"}</div>
+        <div class="paddr">${isAgent(p.addr) ? `<span class="aitag">AI agent</span> · ` : ""}${p.addr.slice(0, 12)}…${p.addr.slice(-6)} · access to ${p.docs} document${p.docs === 1 ? "" : "s"}</div>
       </div>
+      <button class="mini" data-agent-p="${p.addr}" title="Mark as an AI agent — same on-chain gate, just shown differently">${isAgent(p.addr) ? "● Agent" : "Mark agent"}</button>
       <button class="mini" data-act-p="${p.addr}">Activity</button>
       <button class="mini" data-manage-p="${p.addr}">${open ? "Close" : "Manage access"}</button>
       <button class="mini danger" data-rev-p="${p.addr}">Revoke all</button>
+      <button class="mini" data-del-p="${p.addr}" title="Take this identity off your list (revokes their access first)">Remove</button>
     </div>${picker}`;
   }).join("");
   box.querySelectorAll(".pname").forEach((inp) => inp.addEventListener("change", () => {
@@ -604,6 +663,16 @@ async function renderPeople() {
   box.querySelectorAll("[data-act-p]").forEach((b) => b.onclick = () => { switchTab("Activity"); $("#evSearch").value = b.dataset.actP; setTimeout(() => renderActivity(), 400); });
   box.querySelectorAll("[data-manage-p]").forEach((b) => b.onclick = () => { const a = b.dataset.manageP; ppExpanded.has(a) ? ppExpanded.delete(a) : ppExpanded.add(a); renderPeople(); });
   box.querySelectorAll("[data-rev-p]").forEach((b) => b.onclick = async () => { await badgeAll(b.dataset.revP, "remove_recipient"); renderPeople(); });
+  box.querySelectorAll("[data-agent-p]").forEach((b) => b.onclick = () => { toggleAgent(b.dataset.agentP); renderPeople(); });
+  // Remove identity: revoke any on-chain access first (so they don't reappear from an
+  // allowlist), then drop the local roster entry. For names-only entries it's a clean delete.
+  box.querySelectorAll("[data-del-p]").forEach((b) => b.onclick = async () => {
+    const a = b.dataset.delP, person = ppl.find((x) => x.addr === a);
+    const nm = (person?.name || a.slice(0, 10)).split(" ·")[0], has = person ? person.docs : 0;
+    if (!confirm(`Remove ${nm} from your identities?` + (has ? ` Their access to ${has} document${has === 1 ? "" : "s"} will be revoked on the ledger first.` : ""))) return;
+    if (has) await badgeAll(a, "remove_recipient");
+    delete peopleBook[a]; peoplePersist(); ppExpanded.delete(a); renderPeople();
+  });
   box.querySelectorAll("[data-apply-p]").forEach((b) => b.onclick = () => applyAccess(b.dataset.applyP, ppl.find((x) => x.addr === b.dataset.applyP)));
   // Folder checkbox toggles every document under it; folder header reflects children.
   box.querySelectorAll('.docpicker input[data-folder]').forEach((fb) => fb.onchange = () => {
@@ -627,10 +696,12 @@ async function applyAccess(addr, person) {
   if (!panel) return;
   const tx = new Transaction();
   let adds = 0, removes = 0;
+  let blockedDemo = false;
   panel.querySelectorAll('input[data-pid]').forEach((cb) => {
     const pid = cb.dataset.pid, want = cb.checked, has = person.pol.has(pid);
     const m = agentMems.find((x) => x.policyId === pid);
     if (!m) return;
+    if (!m.capId) { if (want !== has) blockedDemo = true; return; } // seeded demo doc — not owned here
     if (want && !has) {
       tx.moveCall({ target: `${CALL_PKG}::${MODULE}::update_scope`, arguments: [tx.object(m.capId), tx.object(m.policyId), tx.pure.u8(1), tx.pure.u64(0), tx.pure.u64(0)] });
       tx.moveCall({ target: `${CALL_PKG}::${MODULE}::add_recipient`, arguments: [tx.object(m.capId), tx.object(m.policyId), tx.pure.address(addr)] });
@@ -640,7 +711,7 @@ async function applyAccess(addr, person) {
       removes++;
     }
   });
-  if (!adds && !removes) { $("#aStatus").textContent = "No changes to apply."; return; }
+  if (!adds && !removes) { $("#aStatus").textContent = blockedDemo ? DEMO_GUARD : "No changes to apply."; return; }
   $("#paneAgent").querySelectorAll("button,input").forEach((b) => b.disabled = true);
   try {
     $("#aStatus").textContent = `Updating access on the ledger — ${adds} granted, ${removes} revoked…`;
@@ -662,6 +733,9 @@ const escapeHtml = (s) => (s || "").replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<
 // a recipient so the clean-team access wall is visible on arrival. A loaded manifest
 // (from "Open a deal room…") takes over and is never overwritten.
 let _roomStaged = false;
+// Web eval build only: a pre-built deal room may be injected (window.__ELUR_SEED_ROOM) so a fresh
+// visitor sees the demo room with zero setup. Bearer docs open for anyone; the revoked one denies.
+try { if (typeof window !== "undefined" && Array.isArray(window.__ELUR_SEED_ROOM) && window.__ELUR_SEED_ROOM.length) { roomManifest = window.__ELUR_SEED_ROOM.slice(); _roomStaged = true; } } catch {}
 function stageDefaultRoom() {
   if (roomManifest || _roomStaged) return;
   if (!agentMems.length) return;
@@ -687,8 +761,8 @@ const roomViewerAddr = () => roomViewer === "me" ? roomMyAddr() : roomViewer;
 
 async function roomAccessFor(policyId, viewer) {
   try {
-    const o = await suiClient.getObject({ id: policyId, options: { showContent: true } });
-    const f = o?.data?.content?.fields;
+    const o = await suiClient.core.getObject({ objectId: policyId, include: { json: true } });
+    const f = o?.object?.json;
     if (!f || f.revoked || f.destroyed) return "revoked";
     if (Number(f.expiry_ms) !== 0 && Date.now() >= Number(f.expiry_ms)) return "revoked";
     if (Number(f.max_opens) !== 0 && Number(f.opens) >= Number(f.max_opens)) return "revoked";
@@ -966,8 +1040,8 @@ async function sealFileToWalrus(path, folder, viewOnly) {
   const mint = new Transaction();
   mint.moveCall({ target: `${CALL_PKG}::${MODULE}::mint`, arguments: [mint.pure.u8(0), mint.pure.u64(0), mint.pure.u64(0), mint.pure.vector("u8", [1]), mint.object(CLOCK)] });
   const res = await exec(mint, "mint document");
-  const policyId = found(res.objectChanges, "::access::AccessPolicy").objectId;
-  const capId = found(res.objectChanges, "::access::OwnerCap").objectId;
+  const policyId = found(res,"::access::AccessPolicy").objectId;
+  const capId = found(res,"::access::OwnerCap").objectId;
   const { encryptedObject } = await newSeal().encrypt({ threshold: 1, packageId: SEAL_PKG, id: policyId, data: ck });
   // The blob carries NO cleartext name/type — the filename lives inside the encrypted
   // AES frame (aesEncrypt embeds it), so Walrus learns nothing about the document.
@@ -989,7 +1063,7 @@ async function sealFileLocal(path) {
   const mint = new Transaction();
   mint.moveCall({ target: `${CALL_PKG}::${MODULE}::mint`, arguments: [mint.pure.u8(0), mint.pure.u64(0), mint.pure.u64(0), mint.pure.vector("u8", [1]), mint.object(CLOCK)] });
   const res = await exec(mint, "mint document");
-  const policyId = found(res.objectChanges, "::access::AccessPolicy").objectId;
+  const policyId = found(res,"::access::AccessPolicy").objectId;
   const { encryptedObject } = await newSeal().encrypt({ threshold: 1, packageId: SEAL_PKG, id: policyId, data: ck });
   // No cleartext name/type in the file either — the filename is inside the encrypted frame.
   const pkg = JSON.stringify({ v: 1, policyId, ek: b64(encryptedObject), iv: b64(iv), ct: b64(ct), exportable: true });
@@ -1008,7 +1082,7 @@ async function roomAddDocs(folderPick) {
     if (!paths || !paths.length) { $("#roomStatus").textContent = "No readable documents found in that folder."; return; }
     folder = baseName(dir).replace(/[_\-]+/g, " ").trim() || "Documents";
   } else {
-    const picked = await platform.chooseFiles([{ name: "Documents", extensions: REQ_DOC_EXT }]);
+    const picked = await platform.chooseFiles(); // no filter — macOS greys valid files otherwise
     if (!picked) return;
     paths = Array.isArray(picked) ? picked : [picked];
   }
@@ -1291,8 +1365,8 @@ function applyWatermark(container, text) {
 // could skip it); the hard guarantee is revoke/expiry, enforced in the gate.
 async function recordOpenIfLimited(policyId) {
   try {
-    const pol = await suiClient.getObject({ id: policyId, options: { showContent: true } });
-    const mo = Number(pol?.data?.content?.fields?.max_opens || 0);
+    const pol = await suiClient.core.getObject({ objectId: policyId, include: { json: true } });
+    const mo = Number(pol?.object?.json?.max_opens || 0);
     if (mo > 0) {
       await fetch(SPONSOR_URL + "/record-open", {
         method: "POST",
@@ -1386,8 +1460,8 @@ function showPromote(o, ck, realName) {
       const mint = new Transaction();
       mint.moveCall({ target: `${CALL_PKG}::${MODULE}::mint`, arguments: [mint.pure.u8(0), mint.pure.u64(expiryMs), mint.pure.u64(maxOpens), mint.pure.vector("u8", [1]), mint.object(CLOCK)] });
       const res = await exec(mint, "mint");
-      const policyId = found(res.objectChanges, "::access::AccessPolicy").objectId;
-      const capId = found(res.objectChanges, "::access::OwnerCap").objectId;
+      const policyId = found(res,"::access::AccessPolicy").objectId;
+      const capId = found(res,"::access::OwnerCap").objectId;
       $("#pstatus").textContent = "Sealing the key to your access policy…";
       const { encryptedObject } = await newSeal().encrypt({ threshold: 1, packageId: SEAL_PKG, id: policyId, data: ck });
       const yale = JSON.stringify({ v: 1, policyId, ek: b64(encryptedObject), iv: o.iv, ct: o.ct, exportable: true });
@@ -1461,15 +1535,19 @@ async function deriveMasterKeyLegacy(phrase) {
 }
 
 async function exec(tx, label) {
-  const options = { showEffects: true, showObjectChanges: true };
-  const res = zkSigner
-    ? await zkSigner.signAndExecute(suiClient, tx, options)
-    : await suiClient.signAndExecuteTransaction({ signer: senderKeypair, transaction: tx, options });
-  await suiClient.waitForTransaction({ digest: res.digest });
-  if (res.effects?.status?.status !== "success") throw new Error(`${label} failed: ${JSON.stringify(res.effects?.status)}`);
+  const include = { effects: true, objectTypes: true };
+  const r = zkSigner
+    ? await zkSigner.signAndExecute(suiClient, tx, include)
+    : await suiClient.core.signAndExecuteTransaction({ signer: senderKeypair, transaction: tx, include });
+  const res = r.transaction ?? r.Transaction ?? r;
+  await suiClient.core.waitForTransaction({ digest: res.digest });
+  if (res.effects?.status?.success !== true) throw new Error(`${label} failed: ${JSON.stringify(res.effects?.status)}`);
   return res;
 }
-const found = (ch, ends) => ch?.find((c) => c.type === "created" && c.objectType?.endsWith(ends));
+const found = (res, ends) => {
+  const types = res?.objectTypes ?? {};
+  return (res?.effects?.changedObjects ?? []).find((c) => c.idOperation === "Created" && types[c.objectId]?.endsWith(ends));
+};
 
 function uiUnlocked(addr, label) {
   // Identity lives in the rail's account corner now (one place, every room).
@@ -1572,8 +1650,8 @@ async function runShare(f) {
     const mint = new Transaction();
     mint.moveCall({ target: `${CALL_PKG}::${MODULE}::mint`, arguments: [mint.pure.u8(0), mint.pure.u64(expiryMs), mint.pure.u64(maxOpens), mint.pure.vector("u8", [1]), mint.object(CLOCK)] });
     const res = await exec(mint, "mint");
-    const policyId = found(res.objectChanges, "::access::AccessPolicy").objectId;
-    const capId = found(res.objectChanges, "::access::OwnerCap").objectId;
+    const policyId = found(res,"::access::AccessPolicy").objectId;
+    const capId = found(res,"::access::OwnerCap").objectId;
 
     $("#sstatus").textContent = "Sealing the key to your access policy…";
     const { encryptedObject } = await newSeal().encrypt({ threshold: 1, packageId: SEAL_PKG, id: policyId, data: ck });
@@ -1620,8 +1698,8 @@ async function showShareActivity(i) {
   el.style.display = "";
   el.textContent = "Reading the public ledger…";
   try {
-    const pol = await suiClient.getObject({ id: s.policyId, options: { showContent: true } });
-    const f = pol?.data?.content?.fields || {};
+    const pol = await suiClient.core.getObject({ objectId: s.policyId, include: { json: true } });
+    const f = pol?.object?.json || {};
     const opens = Number(f.opens || 0);
     const maxOpens = Number(f.max_opens || 0);
     const exp = Number(f.expiry_ms || 0);
@@ -1742,7 +1820,22 @@ const AGENT_SYSTEM =
 // OwnerCaps in the UI (the objects live on-chain; the app just forgets it has them).
 let agentMems = [];            // [{ label, blobId, policyId, capId, folder }]
 try { agentMems = JSON.parse(localStorage.getItem("elurAgentMems") || "[]"); } catch {}
-const agentPersist = () => { try { localStorage.setItem("elurAgentMems", JSON.stringify(agentMems)); } catch {} };
+// Web demo only: if this visitor governs nothing yet, seed Access control with the demo deal's
+// documents FOR DISPLAY (no owner cap → flagged demo:true, never persisted). The owner-only
+// actions detect the missing cap and guide the visitor to add their own file instead of attempting
+// a transaction they can't sign — so the room is full for any judge but never breaks.
+try {
+  if (!agentMems.length && typeof window !== "undefined" && Array.isArray(window.__ELUR_SEED_ROOM) && window.__ELUR_SEED_ROOM.length) {
+    agentMems = window.__ELUR_SEED_ROOM.map(({ label, folder, blobId, policyId, kind, name, ext }) =>
+      ({ label, folder: folder || null, blobId, policyId, kind: kind || "file", name, ext, demo: true }));
+  }
+} catch {}
+// Documents the signed-in account actually owns (holds the OwnerCap for) — only these can be
+// granted, revoked, or reinstated on-chain. Seeded demo docs have no cap and are display-only.
+const ownedMems = () => agentMems.filter((m) => m.capId);
+const DEMO_GUARD = "These are seeded demo documents, so there's no owner key on this device to govern them. Add a file of your own above — then you can grant or revoke access (and connect an agent) on it.";
+// Persist only real (owned) documents — never write the display-only demo seed to storage.
+const agentPersist = () => { try { localStorage.setItem("elurAgentMems", JSON.stringify(agentMems.filter((m) => !m.demo))); } catch {} };
 // Everything is a demo: the canonical documents arrive already sorted into folders,
 // so the workspace is populated the moment you open it — no setup button to press.
 const DEMO_FOLDERS = { "term sheet": "Corporate", "board resolution": "Corporate", "legal counsel": "Legal", "deal contacts": "Legal", "counsel": "Legal", "legal opinion": "Legal", "opinion": "Legal", "due diligence": "Financial", "confidential budget": "Financial" };
@@ -1787,8 +1880,8 @@ async function memDecrypt(iv, ct, ck) {
 
 async function agentIsActive(policyId) {
   try {
-    const o = await suiClient.getObject({ id: policyId, options: { showContent: true } });
-    const f = o?.data?.content?.fields;
+    const o = await suiClient.core.getObject({ objectId: policyId, include: { json: true } });
+    const f = o?.object?.json;
     if (!f || f.revoked || f.destroyed) return false;
     if (Number(f.expiry_ms) !== 0 && Date.now() >= Number(f.expiry_ms)) return false;
     if (Number(f.max_opens) !== 0 && Number(f.opens) >= Number(f.max_opens)) return false;
@@ -1803,8 +1896,8 @@ async function agentRemember(label, text, folder = null) {
   const mint = new Transaction();
   mint.moveCall({ target: `${CALL_PKG}::${MODULE}::mint`, arguments: [mint.pure.u8(0), mint.pure.u64(0), mint.pure.u64(0), mint.pure.vector("u8", [1]), mint.object(CLOCK)] });
   const res = await exec(mint, "mint memory");
-  const policyId = found(res.objectChanges, "::access::AccessPolicy").objectId;
-  const capId = found(res.objectChanges, "::access::OwnerCap").objectId;
+  const policyId = found(res,"::access::AccessPolicy").objectId;
+  const capId = found(res,"::access::OwnerCap").objectId;
   const { encryptedObject } = await newSeal().encrypt({ threshold: 1, packageId: SEAL_PKG, id: policyId, data: ck });
   const pkg = JSON.stringify({ v: 2, policyId, ek: b64(encryptedObject), iv: b64(iv), ct: b64(ct) });
   const blobId = await platform.walrusStore(b64(new TextEncoder().encode(pkg)), 30);
@@ -1840,6 +1933,7 @@ async function agentView() {
 async function agentRevoke(label) {
   const m = agentMems.find((x) => x.label === label);
   if (!m) return;
+  if (!m.capId) { $("#aStatus") && ($("#aStatus").textContent = DEMO_GUARD); return; } // seeded demo doc — not owned here
   const tx = new Transaction();
   tx.moveCall({ target: `${CALL_PKG}::${MODULE}::revoke`, arguments: [tx.object(m.capId), tx.object(m.policyId)] });
   await exec(tx, "revoke memory");
@@ -1905,7 +1999,7 @@ async function agentRenderMems() {
       const active = await agentIsActive(m.policyId);
       const el = document.createElement("div");
       el.className = "amem" + (folder ? " infolder" : "");
-      el.innerHTML = `<div class="atop"><span class="albl">${m.label}</span><span class="abadge ${active ? "on" : "off"}">${active ? "● active" : "● revoked"}</span></div>
+      el.innerHTML = `<div class="atop"><span class="albl">${m.label}${m.demo ? ` <span class="aitag">demo</span>` : ""}</span><span class="abadge ${active ? "on" : "off"}">${active ? "● active" : "● revoked"}</span></div>
         <div class="abid" data-bid="${m.blobId}" title="Click to copy the full Walrus ID" style="cursor:pointer">walrus:${m.blobId.length > 14 ? m.blobId.slice(0, 6) + "…" + m.blobId.slice(-6) : m.blobId}</div>
         ${active ? `<button class="arev" data-l="${m.label}">Revoke on ledger</button>` : `<span class="asealed">sealed — the agent can't read this</span> <button class="arev" data-r="${m.label}" style="color:#2a7">Re-grant on ledger</button>`}
         <button class="arev" data-del="${m.blobId}" style="color:var(--faint);border-color:#e2dccd;margin-left:6px" title="Remove this document from the room. The on-chain policy isn't destroyed — use Revoke first to end access.">Remove</button>`;
@@ -1924,6 +2018,7 @@ async function agentRenderMems() {
 async function agentDoReinstate(label) {
   const m = agentMems.find((x) => x.label === label);
   if (!m) return;
+  if (!m.capId) { $("#aStatus") && ($("#aStatus").textContent = DEMO_GUARD); return; } // seeded demo doc — not owned here
   aBusy(true, `re-granting “${label}” on the ledger…`);
   try {
     const tx = new Transaction();
@@ -2124,7 +2219,10 @@ async function agentPickFolder() {
 }
 // Give the agent one or more individual documents.
 async function agentPickFile() {
-  const picked = await platform.chooseFiles([{ name: "Documents", extensions: ["pdf", "docx", "docm", "xlsx", "xlsm", "pptx", "pptm", "rtf", "html", "htm", "md", "txt", "csv", "tsv", "json", "log", "markdown", "yaml", "yml", "xml", "toml", "ini", "tex", "vtt", "srt", "eml"] }]);
+  // No extension filter: macOS greys out valid files when the filter lists extensions it
+  // can't resolve to UTIs (pdf/xlsx/docx etc. all appear disabled). We accept any file and
+  // let agentIngest skip anything unreadable.
+  const picked = await platform.chooseFiles();
   if (!picked) return;
   await agentIngest(Array.isArray(picked) ? picked : [picked]);
 }
@@ -2159,12 +2257,13 @@ $("#aExport").onclick = async () => {
 // everything at once while the documents stay live for everyone still listed.
 async function badgeAll(addr, fn) {
   if (!/^0x[0-9a-fA-F]{64}$/.test(addr)) { $("#aStatus").textContent = "That doesn't look like a Sui address (0x + 64 hex characters)."; return; }
-  if (!agentMems.length) { $("#aStatus").textContent = "No governed documents yet — give the agent something first."; return; }
+  const mems = ownedMems();
+  if (!mems.length) { $("#aStatus").textContent = agentMems.length ? DEMO_GUARD : "No governed documents yet — give the agent something first."; return; }
   $("#paneAgent").querySelectorAll("button,input").forEach((b) => b.disabled = true);
   try {
-    $("#aStatus").textContent = `${fn === "add_recipient" ? "granting badge" : "revoking badge"} ${addr.slice(0, 10)}… across ${agentMems.length} document${agentMems.length > 1 ? "s" : ""} (one ledger transaction)…`;
+    $("#aStatus").textContent = `${fn === "add_recipient" ? "granting badge" : "revoking badge"} ${addr.slice(0, 10)}… across ${mems.length} document${mems.length > 1 ? "s" : ""} (one ledger transaction)…`;
     const tx = new Transaction();
-    for (const m of agentMems) {
+    for (const m of mems) {
       if (fn === "add_recipient") {
         // Flip to IDENTITY mode alongside the first grant. Crucial difference:
         // bearer + empty allowlist = anyone may open, but identity + empty
@@ -2177,7 +2276,7 @@ async function badgeAll(addr, fn) {
     }
     await exec(tx, fn);
     $("#aStatus").textContent = fn === "add_recipient"
-      ? `✓ badge granted — ${addr.slice(0, 10)}… can open all ${agentMems.length} documents. Anonymous access is now OFF for these files.`
+      ? `✓ badge granted — ${addr.slice(0, 10)}… can open all ${mems.length} documents. Anonymous access is now OFF for these files.`
       : `✓ badge revoked — ${addr.slice(0, 10)}… is cut off from every document at once.`;
   } catch (e) { $("#aStatus").textContent = "❌ " + (e.message || String(e)).slice(0, 160); }
   finally { $("#paneAgent").querySelectorAll("button,input").forEach((b) => b.disabled = false); }
@@ -2186,7 +2285,7 @@ async function badgeAll(addr, fn) {
 // realism behind the demo cast: each deal role holds only the docs they'd really
 // see. One ledger tx; flips each target to identity mode (same bearer-hole fix).
 async function grantSubset(addr, labelKeywords) {
-  const targets = agentMems.filter((m) => labelKeywords.some((k) => (m.label || "").toLowerCase().includes(k)));
+  const targets = agentMems.filter((m) => m.capId && labelKeywords.some((k) => (m.label || "").toLowerCase().includes(k)));
   if (!targets.length) return 0;
   const tx = new Transaction();
   for (const m of targets) {
