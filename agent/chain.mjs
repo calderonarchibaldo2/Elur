@@ -10,7 +10,7 @@
 //     key servers refuse → the agent can still FETCH the blob but cannot decrypt it.
 
 import { readFileSync } from "node:fs";
-import { SuiJsonRpcClient, getJsonRpcFullnodeUrl } from "@mysten/sui/jsonRpc";
+import { SuiGrpcClient } from "@mysten/sui/grpc";
 import { Ed25519Keypair } from "@mysten/sui/keypairs/ed25519";
 import { Transaction } from "@mysten/sui/transactions";
 import { fromHex } from "@mysten/sui/utils";
@@ -26,7 +26,7 @@ const SERVER_CONFIGS = [
   { objectId: "0x73d05d62c18d9374e3ea529e8e0ed6161da1a141a94d3f76ae3fe4e99356db75", weight: 1 },
 ];
 
-export const suiClient = new SuiJsonRpcClient({ url: getJsonRpcFullnodeUrl("testnet"), network: "testnet" });
+export const suiClient = new SuiGrpcClient({ baseUrl: "https://fullnode.testnet.sui.io:443", network: "testnet" });
 
 // Agent identity — its BADGE. Defaults to the gitignored .agent-key.json; override
 // with ELUR_KEY=/path/to/key.json to run as a different identity (e.g. a counterparty
@@ -45,22 +45,25 @@ export async function mintPolicy({ expiryMs = 0, maxOpens = 0 } = {}) {
     target: `${PACKAGE_ID}::${MODULE}::mint`,
     arguments: [tx.pure.u8(0), tx.pure.u64(expiryMs), tx.pure.u64(maxOpens), tx.pure.vector("u8", [1]), tx.object(CLOCK)],
   });
-  const res = await suiClient.signAndExecuteTransaction({ signer: keypair, transaction: tx, options: { showObjectChanges: true } });
-  await suiClient.waitForTransaction({ digest: res.digest });
-  const oc = res.objectChanges || [];
-  const policyId = oc.find((c) => c.objectType?.includes("::access::AccessPolicy"))?.objectId;
-  const capId = oc.find((c) => c.objectType?.includes("::access::OwnerCap"))?.objectId;
+  const res = await suiClient.core.signAndExecuteTransaction({ signer: keypair, transaction: tx, include: { effects: true, objectTypes: true } });
+  const txr = res.transaction ?? res.Transaction ?? res;
+  await suiClient.core.waitForTransaction({ digest: txr.digest });
+  const types = txr.objectTypes ?? {};
+  const created = (txr.effects?.changedObjects ?? []).filter((c) => c.idOperation === "Created");
+  const policyId = created.find((c) => types[c.objectId]?.includes("::access::AccessPolicy"))?.objectId;
+  const capId = created.find((c) => types[c.objectId]?.includes("::access::OwnerCap"))?.objectId;
   if (!policyId || !capId) throw new Error("mint: could not find policy/cap in object changes");
-  return { policyId, capId, digest: res.digest };
+  return { policyId, capId, digest: txr.digest };
 }
 
 // Revoke (reversible seal) — the governance action that makes the agent forget.
 export async function revokePolicy(capId, policyId) {
   const tx = new Transaction();
   tx.moveCall({ target: `${PACKAGE_ID}::${MODULE}::revoke`, arguments: [tx.object(capId), tx.object(policyId)] });
-  const res = await suiClient.signAndExecuteTransaction({ signer: keypair, transaction: tx, options: { showEffects: true } });
-  await suiClient.waitForTransaction({ digest: res.digest });
-  return res.digest;
+  const res = await suiClient.core.signAndExecuteTransaction({ signer: keypair, transaction: tx });
+  const txr = res.transaction ?? res.Transaction ?? res;
+  await suiClient.core.waitForTransaction({ digest: txr.digest });
+  return txr.digest;
 }
 
 // Seal-wrap a 32-byte content key to a policy id. Returns the encrypted object bytes.
@@ -73,8 +76,8 @@ export async function sealWrap(policyId, ck) {
 // `is_active`. Used to show memory badges and to skip recalling sealed memories.
 export async function isPolicyActive(policyId) {
   try {
-    const o = await suiClient.getObject({ id: policyId, options: { showContent: true } });
-    const f = o?.data?.content?.fields;
+    const o = await suiClient.core.getObject({ objectId: policyId, include: { json: true } });
+    const f = o?.object?.json;
     if (!f) return false;
     if (f.revoked || f.destroyed) return false;
     const now = Date.now();

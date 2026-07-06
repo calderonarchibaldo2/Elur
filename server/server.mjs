@@ -4,7 +4,7 @@
 // (zero-custody: auth/gas only). Run from server/:  node server.mjs
 import { readFileSync } from "node:fs";
 import { createServer } from "node:http";
-import { SuiJsonRpcClient, getJsonRpcFullnodeUrl } from "@mysten/sui/jsonRpc";
+import { SuiGrpcClient } from "@mysten/sui/grpc";
 import { Ed25519Keypair } from "@mysten/sui/keypairs/ed25519";
 import { Transaction } from "@mysten/sui/transactions";
 
@@ -55,7 +55,7 @@ const MODULE = "access";
 // to sign with). Pays its own gas from a funded testnet keypair. record_open is
 // unguarded in the contract, so the relayer can call it on anyone's behalf —
 // this is best-effort open-counting (a documented limitation).
-const suiClient = new SuiJsonRpcClient({ url: getJsonRpcFullnodeUrl(NETWORK), network: NETWORK });
+const suiClient = new SuiGrpcClient({ baseUrl: `https://fullnode.${NETWORK}.sui.io:443`, network: NETWORK });
 let relayer = null;
 try {
   if (RELAYER_MNEMONIC) {
@@ -125,8 +125,9 @@ createServer(async (req, res) => {
       if (!p.policyId) return json(res, 400, { error: "policyId required" });
       const tx = new Transaction();
       tx.moveCall({ target: `${RECORD_PKG}::${MODULE}::record_open`, arguments: [tx.object(p.policyId)] });
-      const out = await suiClient.signAndExecuteTransaction({ signer: relayer, transaction: tx, options: { showEffects: true } });
-      await suiClient.waitForTransaction({ digest: out.digest });
+      const r = await suiClient.core.signAndExecuteTransaction({ signer: relayer, transaction: tx });
+      const out = r.transaction ?? r.Transaction ?? r;
+      await suiClient.core.waitForTransaction({ digest: out.digest });
       console.log(new Date().toISOString(), "recorded open", out.digest);
       return json(res, 200, { digest: out.digest });
     }

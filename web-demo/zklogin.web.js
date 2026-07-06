@@ -35,8 +35,8 @@ async function sponsoredExec(suiClient, tx, s, eph, options) {
   const r2 = await fetch(CONFIG.sponsorUrl + "/execute", { method: "POST", headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ digest, signature }) });
   if (!r2.ok) throw new Error("execute: " + (await r2.text()).slice(0, 200));
-  await suiClient.waitForTransaction({ digest });
-  return suiClient.getTransactionBlock({ digest, options });
+  await suiClient.core.waitForTransaction({ digest });
+  return suiClient.core.getTransaction({ digest, include: { effects: true, objectTypes: true } });
 }
 function makeSigner(s) {
   const eph = Ed25519Keypair.fromSecretKey(s.ephSecret);

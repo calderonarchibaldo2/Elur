@@ -10,7 +10,7 @@
 // (A = ./.agent-key.json, B = ./counterparty-key.json — both on this machine.)
 
 import { readFileSync } from "node:fs";
-import { SuiJsonRpcClient, getJsonRpcFullnodeUrl } from "@mysten/sui/jsonRpc";
+import { SuiGrpcClient } from "@mysten/sui/grpc";
 import { Ed25519Keypair } from "@mysten/sui/keypairs/ed25519";
 import { Transaction } from "@mysten/sui/transactions";
 import { fromHex } from "@mysten/sui/utils";
@@ -23,7 +23,7 @@ const SERVER_CONFIGS = [
   { objectId: "0xb012378c9f3799fb5b1a7083da74a4069e3c3f1c93de0b27212a5799ce1e1e98", weight: 1, aggregatorUrl: "https://seal-aggregator-testnet.mystenlabs.com" },
   { objectId: "0x73d05d62c18d9374e3ea529e8e0ed6161da1a141a94d3f76ae3fe4e99356db75", weight: 1 },
 ];
-const suiClient = new SuiJsonRpcClient({ url: getJsonRpcFullnodeUrl("testnet"), network: "testnet" });
+const suiClient = new SuiGrpcClient({ baseUrl: "https://fullnode.testnet.sui.io:443", network: "testnet" });
 const seal = () => new SealClient({ suiClient, serverConfigs: SERVER_CONFIGS, verifyKeyServers: false });
 const loadKey = (f) => Ed25519Keypair.fromSecretKey(JSON.parse(readFileSync(new URL(f, import.meta.url), "utf8")).exportedPrivateKey);
 const line = (s = "") => console.log(s);
@@ -34,8 +34,9 @@ const Aaddr = A.toSuiAddress(), Baddr = B.toSuiAddress();
 
 async function send(signer, build, label) {
   const tx = new Transaction(); build(tx);
-  const res = await suiClient.signAndExecuteTransaction({ signer, transaction: tx, options: { showObjectChanges: true } });
-  await suiClient.waitForTransaction({ digest: res.digest });
+  const r = await suiClient.core.signAndExecuteTransaction({ signer, transaction: tx, include: { effects: true, objectTypes: true } });
+  const res = r.transaction ?? r.Transaction ?? r;
+  await suiClient.core.waitForTransaction({ digest: res.digest });
   return res;
 }
 
@@ -63,8 +64,10 @@ const secret = "Clean-team only: walk-away ceiling $4.2M. Not for buyer corp dev
 
 line("\n① A mints an IDENTITY-mode policy + seals the secret to it…");
 const mintRes = await send(A, (tx) => tx.moveCall({ target: `${PACKAGE_ID}::${MODULE}::mint`, arguments: [tx.pure.u8(MODE_IDENTITY), tx.pure.u64(0), tx.pure.u64(0), tx.pure.vector("u8", [1]), tx.object(CLOCK)] }), "mint");
-const policyId = (mintRes.objectChanges || []).find((c) => c.objectType?.includes("::access::AccessPolicy"))?.objectId;
-const capId = (mintRes.objectChanges || []).find((c) => c.objectType?.includes("::access::OwnerCap"))?.objectId;
+const mintTypes = mintRes.objectTypes ?? {};
+const mintCreated = (mintRes.effects?.changedObjects ?? []).filter((c) => c.idOperation === "Created");
+const policyId = mintCreated.find((c) => mintTypes[c.objectId]?.includes("::access::AccessPolicy"))?.objectId;
+const capId = mintCreated.find((c) => mintTypes[c.objectId]?.includes("::access::OwnerCap"))?.objectId;
 if (!policyId || !capId) { line("   ❌ could not find policy/cap"); process.exit(1); }
 const ck = randomKey();
 const { encryptedObject: ek } = await seal().encrypt({ threshold: 1, packageId: PACKAGE_ID, id: policyId, data: ck });

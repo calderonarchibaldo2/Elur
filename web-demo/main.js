@@ -3,7 +3,7 @@
 // on Sui → releases the key only if the policy allows → decrypt locally. The revoked
 // document denies live. Nothing is mocked; nothing is installed.
 
-import { SuiJsonRpcClient, getJsonRpcFullnodeUrl } from "@mysten/sui/jsonRpc";
+import { SuiGrpcClient } from "@mysten/sui/grpc";
 import { Ed25519Keypair } from "@mysten/sui/keypairs/ed25519";
 import { Transaction } from "@mysten/sui/transactions";
 import { fromHex } from "@mysten/sui/utils";
@@ -20,7 +20,7 @@ const SERVER_CONFIGS = [
   { objectId: "0x73d05d62c18d9374e3ea529e8e0ed6161da1a141a94d3f76ae3fe4e99356db75", weight: 1 },
 ];
 
-const suiClient = new SuiJsonRpcClient({ url: getJsonRpcFullnodeUrl("testnet"), network: "testnet" });
+const suiClient = new SuiGrpcClient({ baseUrl: "https://fullnode.testnet.sui.io:443", network: "testnet" });
 const subtle = window.crypto.subtle;
 const newSeal = () => new SealClient({ suiClient, serverConfigs: SERVER_CONFIGS, verifyKeyServers: false });
 const $ = (s) => document.querySelector(s);
@@ -136,7 +136,6 @@ function renderBytes(el, name, bytes) {
   else if (["txt","md","csv","json","log","xml","html"].includes(ext)) { const p = document.createElement("pre"); p.textContent = new TextDecoder().decode(bytes); el.appendChild(p); }
   else { const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = name; a.textContent = "⬇ Download " + name; a.style.color = "var(--brass)"; el.appendChild(a); }
 }
-const createdObj = (ch, ends) => ch?.find((c) => c.type === "created" && c.objectType?.endsWith(ends));
 
 async function senderMint(file) {
   const st = $("#sst");
@@ -148,9 +147,13 @@ async function senderMint(file) {
     st.textContent = "Minting your access policy on Sui (gas sponsored)…";
     const mint = new Transaction();
     mint.moveCall({ target: `${CALL_PKG}::${MODULE}::mint`, arguments: [mint.pure.u8(0), mint.pure.u64(0), mint.pure.u64(0), mint.pure.vector("u8", [1]), mint.object(CLOCK)] });
-    const res = await zk.signAndExecute(suiClient, mint, { showObjectChanges: true });
-    const policyId = createdObj(res.objectChanges, "::access::AccessPolicy").objectId;
-    const capId = createdObj(res.objectChanges, "::access::OwnerCap").objectId;
+    const res = await zk.signAndExecute(suiClient, mint);
+    const txr = res.transaction ?? res.Transaction ?? res;
+    const types = txr.objectTypes ?? {};
+    const created = (txr.effects?.changedObjects ?? []).filter((c) => c.idOperation === "Created");
+    const policyId = created.find((c) => types[c.objectId]?.endsWith("::access::AccessPolicy"))?.objectId;
+    const capId = created.find((c) => types[c.objectId]?.endsWith("::access::OwnerCap"))?.objectId;
+    if (!policyId || !capId) throw new Error("mint: policy/cap not found in transaction result");
     st.textContent = "Sealing the key to your policy…";
     const { encryptedObject } = await newSeal().encrypt({ threshold: 1, packageId: SEAL_PKG, id: policyId, data: ck });
     myDoc = { name: file.name, policyId, capId, pkg: { policyId, ek: b64e(encryptedObject), iv: b64e(iv), ct: b64e(ct) }, revoked: false };
@@ -180,7 +183,7 @@ async function senderRevoke() {
     st.textContent = "Revoking on Sui (gas sponsored)…";
     const tx = new Transaction();
     tx.moveCall({ target: `${CALL_PKG}::${MODULE}::revoke`, arguments: [tx.object(myDoc.capId), tx.object(myDoc.policyId)] });
-    await zk.signAndExecute(suiClient, tx, { showEffects: true });
+    await zk.signAndExecute(suiClient, tx);
     myDoc.revoked = true; st.textContent = "Revoked — now open it again and watch the gate deny."; renderMyDoc();
   } catch (e) { st.textContent = "❌ " + (e.message || String(e)).slice(0, 200); }
 }
